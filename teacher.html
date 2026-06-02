@@ -13,7 +13,7 @@
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">🎒 课室管理系统 - 教师后台</h1>
-                <p class="text-sm text-gray-500 mt-1">支持手动点名、修改、删除及全新的 QR 码扫描打卡</p>
+                <p class="text-sm text-gray-500 mt-1">支持智能补签、资料修改、删除学生及 QR 码扫描打卡</p>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
                 <button onclick="toggleScanner()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow font-medium transition flex items-center gap-1">
@@ -53,9 +53,9 @@
                         <th class="p-3">手机号码 / 每堂单价</th>
                         <th class="p-3">剩余堂数</th>
                         <th class="p-3">估算余额</th>
-                        <th class="p-3">今日打卡</th>
-                        <th class="p-3">增减课时(充值)</th>
-                        <th class="p-3">操作</th>
+                        <th class="p-3">出勤记录</th>
+                        <th class="p-3">手动调整堂数</th>
+                        <th class="p-3">管理操作</th>
                     </tr>
                 </thead>
                 <tbody id="studentTable" class="divide-y divide-gray-200 text-sm">
@@ -66,8 +66,8 @@
     </div>
 
     <script>
-        // 🔴 请贴入你的 Google Apps Script Web App URL
-        const API_URL = "https://script.google.com/macros/s/AKfycby9CGLqOwKFvkqyeYlkN3h6SbqCn8anMI8iFdQyO6PHmpyzxtxVuGLcmphJlZ81mHZA/exec"; 
+        // 🔴 记得在这里填入你的 Google Apps Script Web App URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzbalput2v0mcOrIZSrO6upum_A6dUvy43aqluFrgqV6jItTUPnOPotUGyHpGmKlZy4/exec"; 
         let studentsData = [];
         let html5QrcodeScanner = null;
 
@@ -77,7 +77,7 @@
                 studentsData = await response.json();
                 renderTable();
             } catch (error) {
-                alert("加载数据失败，请检查网路或API设置。");
+                alert("加载数据失败，请检查网络或API设置。");
             }
         }
 
@@ -107,13 +107,15 @@
                     <td class="p-3 font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}">${student.RemainingLessons} 堂</td>
                     <td class="p-3 font-medium ${isDebt ? 'text-red-600' : 'text-green-600'}">RM ${balance.toFixed(2)}</td>
                     <td class="p-3">
-                        <button onclick="checkIn(${student.rowNumber}, '${student.Name}')" class="bg-blue-600 text-white px-2.5 py-1 rounded hover:bg-blue-700 text-xs font-medium">手动打卡</button>
+                        <button onclick="checkInPrompt(${student.rowNumber}, '${student.Name}')" class="bg-blue-600 text-white px-2.5 py-1.5 rounded hover:bg-blue-700 text-xs font-bold shadow-sm flex items-center gap-1">
+                            📅 补录/手动打卡
+                        </button>
                     </td>
                     <td class="p-3">
                         <div class="flex space-x-1">
-                            <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold hover:bg-green-200">+1</button>
-                            <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-600 text-white px-2 py-0.5 rounded text-xs font-bold hover:bg-green-700">+4堂</button>
-                            <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-bold hover:bg-gray-300">-1</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold hover:bg-green-200">+1</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-700">+4堂</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold hover:bg-gray-300">-1</button>
                         </div>
                     </td>
                     <td class="p-3 space-x-2">
@@ -143,14 +145,33 @@
             }
         }
 
-        async function checkIn(rowNumber, name) {
+        // 🆕 升级版手动打卡：支持自由选择日期（事后补录核心）
+        async function checkInPrompt(rowNumber, name) {
             const today = new Date().toISOString().split('T')[0];
-            if(!confirm(`确定为 ${name} 记录今日 (${today}) 出席吗？`)) return;
+            
+            // 弹窗要求输入日期，默认带入今天日期
+            const selectedDate = prompt(`请输入要为 [${name}] 记录出席的日期 (格式: YYYY-MM-DD):`, today);
+            
+            // 如果用户点击了取消，或者什么都没输，则终止操作
+            if (selectedDate === null || selectedDate.trim() === "") return;
+
+            // 验证日期格式
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(selectedDate.trim())) {
+                alert("❌ 日期格式不正确，请输入类似 2026-06-02 的格式！");
+                return;
+            }
+
+            if(!confirm(`确定为 ${name} 记录 [${selectedDate}] 的出勤，并扣除1堂课吗？`)) return;
+
             const res = await fetch(API_URL, {
                 method: "POST",
-                body: JSON.stringify({ action: "updateAttendance", rowNumber, date: today })
+                body: JSON.stringify({ action: "updateAttendance", rowNumber, date: selectedDate.trim() })
             });
-            if(res.ok) { alert("打卡成功！"); loadStudents(); }
+            if(res.ok) { 
+                alert(`🎉 成功补录！[${name}] 在 ${selectedDate} 的出勤已记入。`); 
+                loadStudents(); 
+            }
         }
 
         async function adjustLessons(rowNumber, amount) {
@@ -191,7 +212,6 @@
         }
 
         async function onScanSuccess(decodedText) {
-            // 假设扫码解出的文本是学生ID
             if(html5QrcodeScanner) html5QrcodeScanner.clear();
             document.getElementById("scannerContainer").classList.add("hidden");
 
@@ -202,7 +222,7 @@
             });
             const data = await res.json();
             if(data.status === "success") {
-                alert(`🎉 QR码打卡成功！学员: ${data.name} 已自动扣除1课时。`);
+                alert(`🎉 QR码扫码成功！学员: ${data.name} 已自动扣除1课时并记入今日。`);
                 loadStudents();
             } else {
                 alert("❌ 打卡失败: " + (data.message || "无效的二维码"));
