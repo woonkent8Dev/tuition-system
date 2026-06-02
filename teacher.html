@@ -7,52 +7,79 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">🎒 教师点名与费用管理</h1>
-            <button onclick="remindAllDebts()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded shadow transition">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow space-y-8">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">🎒 课室管理系统 - 教师后台</h1>
+                <p class="text-sm text-gray-500 mt-1">可直接在这里添加学生、打卡及催缴学费</p>
+            </div>
+            <button onclick="remindAllDebts()" class="bg-red-500 hover:bg-red-600 text-white px-5 py-2.5 rounded-lg shadow font-medium transition w-full md:w-auto">
                 🚨 一键催缴 (所有欠费同学)
             </button>
+        </div>
+
+        <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+            <h3 class="text-sm font-bold text-blue-800 mb-3">➕ 快速添加新学生</h3>
+            <form id="addStudentForm" onsubmit="addStudent(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <input type="text" id="newName" placeholder="学生姓名 (例: 张小明)" required class="px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <input type="text" id="newPhone" placeholder="手机号 (例: 60123456789)" required class="px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <div class="relative">
+                    <span class="absolute left-3 top-2 text-gray-500 text-sm">RM</span>
+                    <input type="number" id="newPrice" placeholder="每堂价格" value="37.5" step="0.1" required class="w-full pl-10 pr-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <button type="submit" id="submitBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg text-sm transition">
+                    保存并同步到表格
+                </button>
+            </form>
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-200 text-gray-700">
+                    <tr class="bg-gray-200 text-gray-700 text-sm">
                         <th class="p-3">姓名</th>
                         <th class="p-3">手机号码</th>
                         <th class="p-3">剩余堂数</th>
                         <th class="p-3">估算余额/欠款</th>
-                        <th class="p-3">操作打卡 (今天)</th>
-                        <th class="p-3">调整堂数</th>
-                        <th class="p-3">手动通知</th>
+                        <th class="p-3">今日出席打卡</th>
+                        <th class="p-3">手动调整堂数</th>
+                        <th class="p-3">快捷通知</th>
                     </tr>
                 </thead>
-                <tbody id="studentTable" class="divide-y divide-gray-200">
-                    <tr><td colspan="7" class="p-4 text-center text-gray-500">正在加载学生数据...</td></tr>
+                <tbody id="studentTable" class="divide-y divide-gray-200 text-sm">
+                    <tr><td colspan="7" class="p-4 text-center text-gray-500">正在从 Google Sheet 加载学生数据...</td></tr>
                 </tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // 🔴 请替换为你自己的 Google Apps Script Web App URL
-        const API_URL = "https://script.google.com/macros/s/AKfycbzsTF2LC4o15ibOx0B-hNerfGjlCmAprDZww3XegxkHf-g_AgcXVOSpzVI4zdyFsuzm/exec"; 
+        // 🔴 记得把这里换成你在 Google Apps Script 获得的 Web App 链接！
+        const API_URL = "YOUR_GOOGLE_SCRIPT_WEB_APP_URL"; 
         let studentsData = [];
 
+        // 加载学生列表
         async function loadStudents() {
             try {
                 const response = await fetch(API_URL);
                 studentsData = await response.json();
                 renderTable();
             } catch (error) {
-                alert("加载数据失败，请检查配置。");
+                console.error(error);
+                alert("加载数据失败，请检查 Google Apps Script 的 URL 是否填对，或是否开启了 Anyone 访问权限。");
             }
         }
 
+        // 渲染表格内容
         function renderTable() {
             const tbody = document.getElementById("studentTable");
             tbody.innerHTML = "";
+
+            if(studentsData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-400">目前还没有学生资料，请在上方添加。</td></tr>`;
+                return;
+            }
 
             studentsData.forEach(student => {
                 const price = student.PricePerLesson || 37.5;
@@ -60,40 +87,81 @@
                 const isDebt = student.RemainingLessons <= 0;
 
                 const tr = document.createElement("tr");
-                tr.className = isDebt ? "bg-red-50" : "";
+                tr.className = isDebt ? "bg-red-50/70 hover:bg-red-100/50 transition" : "hover:bg-gray-50 transition";
                 tr.innerHTML = `
-                    <td class="p-3 font-semibold">${student.Name}</td>
+                    <td class="p-3 font-semibold text-gray-800">${student.Name}</td>
                     <td class="p-3 text-gray-600">${student.Phone}</td>
                     <td class="p-3 font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}">${student.RemainingLessons} 堂</td>
                     <td class="p-3 font-medium ${isDebt ? 'text-red-600' : 'text-green-600'}">RM ${balance.toFixed(2)}</td>
                     <td class="p-3">
-                        <button onclick="checkIn(${student.rowNumber}, '${student.Name}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">出席打卡 (-1)</button>
+                        <button onclick="checkIn(${student.rowNumber}, '${student.Name}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 text-xs font-medium shadow-sm">出席打卡 (-1)</button>
                     </td>
-                    <td class="p-3 flex space-x-1">
-                        <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">+1堂</button>
-                        <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">+4堂</button>
-                        <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">-1堂</button>
+                    <td class="p-3">
+                        <div class="flex space-x-1">
+                            <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold hover:bg-green-200">+1</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-700">+4 (充值)</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold hover:bg-gray-300">-1</button>
+                        </div>
                     </td>
-                    <td class="p-3 space-x-1">
-                        <button onclick="sendWhatsApp('${student.Phone}', 'absent', '${student.Name}')" class="text-orange-600 hover:underline text-sm">通知缺席</button>
-                        <button onclick="sendWhatsApp('${student.Phone}', 'remind', '${student.Name}', ${student.RemainingLessons})" class="text-red-600 hover:underline text-sm font-semibold">催缴</button>
+                    <td class="p-3 space-x-2">
+                        <button onclick="sendWhatsApp('${student.Phone}', 'absent', '${student.Name}')" class="text-orange-600 hover:text-orange-800 font-medium text-xs">通知缺席</button>
+                        <button onclick="sendWhatsApp('${student.Phone}', 'remind', '${student.Name}', ${student.RemainingLessons})" class="text-red-600 hover:text-red-800 font-bold text-xs">催缴提示</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
+        // 🆕 添加新学生功能
+        async function addStudent(event) {
+            event.preventDefault();
+            const submitBtn = document.getElementById("submitBtn");
+            
+            const name = document.getElementById("newName").value.trim();
+            const phone = document.getElementById("newPhone").value.trim();
+            const price = document.getElementById("newPrice").value;
+
+            submitBtn.disabled = true;
+            submitBtn.innerText = "正在同步写入...";
+
+            try {
+                const res = await fetch(API_URL, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        action: "addStudent", // 对应后台新写的接收动作
+                        name,
+                        phone,
+                        price: parseFloat(price)
+                    })
+                });
+                
+                if(res.ok) {
+                    alert(`成功添加新学生: ${name}`);
+                    document.getElementById("addStudentForm").reset();
+                    document.getElementById("newPrice").value = "37.5"; // 恢复默认学费
+                    loadStudents(); // 重新刷新列表
+                }
+            } catch (error) {
+                alert("添加失败，请检查网络。");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerText = "保存并同步到表格";
+            }
+        }
+
+        // 出席打卡记录
         async function checkIn(rowNumber, name) {
             const today = new Date().toISOString().split('T')[0];
-            if(!confirm(`确定要为 ${name} 记录今日 (${today}) 出席并扣除一堂课吗？`)) return;
+            if(!confirm(`确定要为 ${name} 记录今日 (${today}) 出席，并扣除一堂课吗？`)) return;
 
             const res = await fetch(API_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "updateAttendance", rowNumber, date: today })
             });
-            if(res.ok) { alert("打卡成功！"); loadStudents(); }
+            if(res.ok) { loadStudents(); }
         }
 
+        // 手动+-堂数
         async function adjustLessons(rowNumber, amount) {
             const res = await fetch(API_URL, {
                 method: "POST",
@@ -102,6 +170,7 @@
             if(res.ok) { loadStudents(); }
         }
 
+        // 发送单人 WhatsApp
         function sendWhatsApp(phone, type, name, lessons = 0) {
             let message = "";
             if (type === 'absent') {
@@ -113,6 +182,7 @@
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
         }
 
+        // 一键催缴所有欠费学生
         function remindAllDebts() {
             const debtStudents = studentsData.filter(s => s.RemainingLessons <= 0);
             if(debtStudents.length === 0) {
@@ -123,7 +193,7 @@
                 debtStudents.forEach((student, index) => {
                     setTimeout(() => {
                         sendWhatsApp(student.Phone, 'remind', student.Name, student.RemainingLessons);
-                    }, index * 1000); // 延迟打开防止浏览器拦截
+                    }, index * 1200); // 1.2秒延迟，防止浏览器拦截弹窗
                 });
             }
         }
