@@ -1,52 +1,61 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学员服务中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
-<body class="bg-gray-50 flex flex-col items-center p-4">
-    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md space-y-5 my-2 border">
+<body class="bg-slate-100 flex flex-col items-center p-4 font-sans">
+    <div class="w-full max-w-md bg-white p-6 rounded-2xl shadow-xl space-y-5 my-2 border border-slate-200">
         
         <div class="text-center">
-            <h2 class="text-xl font-bold text-gray-800">🏫 学员服务中心</h2>
-            <p class="text-xs text-gray-500 mt-1">查询剩余课堂与成绩记录</p>
+            <h2 class="text-2xl font-black text-slate-800 tracking-wide">🏫 学员大厅</h2>
+            <p class="text-xs text-slate-400 mt-1">分数达标即可在此处自主激活专属奖励</p>
         </div>
         
-        <div class="space-y-3">
-            <input type="text" id="phone" placeholder="请输入绑定的手机号" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-            <button onclick="query()" class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg">🔍 立即查询</button>
+        <div class="flex gap-2">
+            <input type="text" id="phone" placeholder="请输入您的手机号" class="w-full px-4 py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 text-sm">
+            <button onclick="query()" class="bg-indigo-600 text-white font-bold px-5 py-2 rounded-xl text-sm shadow">查询</button>
         </div>
 
-        <div id="resArea" class="hidden border-t pt-4 space-y-4">
+        <div id="resArea" class="hidden border-t pt-4 space-y-4 animate-in fade-in duration-200">
             
-            <div id="qrcode" class="p-2 bg-white rounded shadow-sm mx-auto w-fit border border-gray-200"></div>
+            <div class="text-center">
+                <div id="qrcode" class="p-2 bg-white rounded-xl shadow-md mx-auto w-fit border border-slate-100"></div>
+                <p class="text-[10px] text-slate-400 mt-1 font-medium">上课时请向老师出示此码快速打卡</p>
+            </div>
             
-            <div class="bg-gray-50 p-3 rounded-lg border flex justify-between items-center">
+            <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg">
                 <div>
-                    <span class="text-xs text-gray-500 block">姓名：<b id="resName" class="text-gray-800 text-sm"></b></span>
-                    <span class="text-xs text-gray-500 block mt-1">剩余：<b id="resL" class="text-lg text-blue-600"></b> 堂</span>
+                    <span class="text-xs text-slate-400 block font-medium">STUDENT NAME</span>
+                    <b id="resName" class="text-lg tracking-wide"></b>
                 </div>
-                <div id="debtAlert" class="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded hidden">需尽快缴费</div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block font-medium">剩余课堂</span>
+                    <span class="text-2xl font-black text-emerald-400" id="resL"></span>
+                </div>
             </div>
 
-            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
-                <span class="text-xs font-bold text-gray-700 block mb-2">📊 学术与奖励记录</span>
-                <div class="text-sm text-gray-600 mb-1">上期分数：<b id="resLast"></b> | 本期分数：<b id="resCurr" class="text-blue-600"></b></div>
-                <div id="drinkStatus" class="text-xs font-bold text-orange-600"></div>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 text-center divide-x">
+                <div><span class="text-xs text-slate-400 block">上期考核</span><b id="resLast" class="text-base text-slate-700"></b></div>
+                <div><span class="text-xs text-slate-400 block">本期得分</span><b id="resCurr" class="text-xl text-indigo-600"></b></div>
             </div>
 
-            <button onclick="togglePay()" class="w-full bg-gray-800 text-white text-xs py-2 rounded-lg font-bold mt-2">💳 展开学费付款码</button>
-            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-gray-100 rounded-lg">
-                <div class="bg-white p-2 rounded text-center">
-                    <span class="font-bold text-blue-600 text-[10px]">Touch 'n Go</span>
-                    <img src="tngo.JPG" class="w-full h-auto mx-auto border mt-1" alt="TnG">
+            <div id="couponSection" class="space-y-3">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">🎁 我的专属荣誉礼券架</h3>
+                <div id="couponShelf" class="space-y-2"></div>
+            </div>
+
+            <button onclick="togglePay()" class="w-full bg-slate-200 text-slate-700 text-xs py-2 rounded-xl font-bold transition hover:bg-slate-300">💳 展开学费学费付款码</button>
+            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border">
+                <div class="bg-white p-2 rounded-lg text-center shadow-sm">
+                    <span class="font-bold text-blue-600 text-[10px] block mb-1">Touch 'n Go</span>
+                    <img src="tngo.JPG" class="w-full h-auto mx-auto border rounded">
                 </div>
-                <div class="bg-white p-2 rounded text-center">
-                    <span class="font-bold text-red-600 text-[10px]">Bank Transfer</span>
-                    <img src="bank.jpg" class="w-full h-auto mx-auto border mt-1" alt="Bank">
+                <div class="bg-white p-2 rounded-lg text-center shadow-sm">
+                    <span class="font-bold text-red-600 text-[10px] block mb-1">HLB Bank</span>
+                    <img src="bank.jpg" class="w-full h-auto mx-auto border rounded">
                 </div>
             </div>
 
@@ -54,62 +63,101 @@
     </div>
 
     <script>
-        // 🔴 填入你的 Google Apps Script 网址
-        const API_URL = "https://script.google.com/macros/s/AKfycbzi0hdl6PBRs7XRzDC8C2OHMb88VfyscbbVdSHrAXujgEsWzk-CCzkUoonPMIENQwYD/exec"; 
-        
-        async function query() {
-            const resArea = document.getElementById("resArea");
-            const phone = document.getElementById("phone").value.trim();
-            const qr = document.getElementById("qrcode");
-            
-            if(!phone) { alert("手机号不能为空"); return; }
-            qr.innerHTML = ""; resArea.classList.add("hidden");
+        const API_URL = "https://script.google.com/macros/s/AKfycbyeJbERKoQxs8qclqDfNhTh-2mXv_Mt9OvgouT3GahkLUMUneWwgxCZzDdwBsmXXyVw/exec"; 
+        let currentStudentRow = null;
 
+        async function query() {
+            const phone = document.getElementById("phone").value.trim();
+            if(!phone) return;
+            document.getElementById("qrcode").innerHTML = "";
+            
             try {
                 const response = await fetch(API_URL);
                 const students = await response.json();
-                
-                // 防护机制：如果读取到的不是数组，说明后台出错了
-                if(!Array.isArray(students)) {
-                    alert("后台数据格式错误！请确认你的 Google Script 已成功发布为 New Version！");
-                    return;
-                }
-
                 const s = students.find(x => String(x.Phone).trim() === phone);
 
                 if(s) {
+                    currentStudentRow = s.rowNumber;
                     document.getElementById("resName").innerText = s.Name;
-                    document.getElementById("resL").innerText = s.RemainingLessons;
+                    document.getElementById("resL").innerText = s.RemainingLessons + " 堂";
+                    document.getElementById("resLast").innerText = (s.LastScore || 0) + "分";
+                    document.getElementById("resCurr").innerText = (s.CurrentScore || 0) + "分";
                     
-                    if(s.RemainingLessons <= 0) {
-                        document.getElementById("debtAlert").classList.remove("hidden");
-                    } else {
-                        document.getElementById("debtAlert").classList.add("hidden");
-                    }
+                    // 渲染动感礼券架
+                    renderCoupons(s);
 
-                    document.getElementById("resLast").innerText = s.LastScore || 0;
-                    document.getElementById("resCurr").innerText = s.CurrentScore || 0;
-                    
-                    if(s.CustomTargetScore > 0) {
-                        let txt = `目标分: ${s.CustomTargetScore}。`;
-                        if(s.CustomRewardStatus === "饮料未兑换") txt += "🎉 达成！请向老师领取饮料";
-                        else if(s.CustomRewardStatus === "饮料已兑换") txt += "✅ 饮料已领";
-                        else txt += "加油冲刺！";
-                        document.getElementById("drinkStatus").innerText = txt;
-                    } else {
-                        document.getElementById("drinkStatus").innerText = "";
-                    }
+                    new QRCode(document.getElementById("qrcode"), { text: String(s.ID), width: 120, height: 120 });
+                    document.getElementById("resArea").classList.remove("hidden");
+                } else { alert("查无此人，请确保手机号输入无误。"); }
+            } catch (e) { alert("网络异常，请刷新重试"); }
+        }
 
-                    new QRCode(qr, { text: String(s.ID), width: 130, height: 130 });
-                    resArea.classList.remove("hidden");
-                } else { 
-                    alert("查无此人，请确认手机号是否输入正确。"); 
+        function renderCoupons(s) {
+            const shelf = document.getElementById("couponShelf");
+            shelf.innerHTML = "";
+            let count = 0;
+
+            // 1. 处理学费减免礼券
+            if(String(s.RewardStatus).includes("未兑换")) {
+                count++;
+                const value = s.RewardStatus.replace("未兑换","");
+                shelf.innerHTML += `
+                    <div class="bg-gradient-to-r from-amber-400 to-orange-400 p-3 rounded-xl text-white flex justify-between items-center shadow shadow-orange-200 border border-orange-300 animate-pulse">
+                        <div><b class="text-sm block">🎓 学业优异学费券</b><span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">${value} 减免已解锁</span></div>
+                        <button onclick="redeem('Reward')" class="bg-white text-orange-600 font-black text-xs px-3 py-1.5 rounded-lg shadow hover:bg-orange-50 active:scale-95 transition">点击 REDEEM</button>
+                    </div>`;
+            } else if(String(s.RewardStatus).includes("申请中")) {
+                count++;
+                shelf.innerHTML += `
+                    <div class="bg-slate-100 p-3 rounded-xl border border-dashed text-slate-400 flex justify-between items-center">
+                        <div><b class="text-sm block text-slate-500">⏳ 正在向老师召唤中...</b><span class="text-[10px]">请等待老师现场确认抵消</span></div>
+                        <span class="text-xs font-bold text-amber-600 animate-ping">⚡</span>
+                    </div>`;
+            } else if(s.RewardStatus === "已兑换") {
+                count++;
+                shelf.innerHTML += `<div class="bg-emerald-50 p-2.5 rounded-xl text-center text-xs text-emerald-600 font-bold border border-emerald-200">🎉 恭喜！本期学费券已成功核销抵消！</div>`;
+            }
+
+            // 2. 处理因人而异的特调饮料奖
+            if(parseInt(s.CustomTargetScore) > 0) {
+                count++;
+                if(s.CustomRewardStatus === "饮料未兑换") {
+                    shelf.innerHTML += `
+                        <div class="bg-gradient-to-r from-cyan-400 to-blue-500 p-3 rounded-xl text-white flex justify-between items-center shadow shadow-blue-200 border border-blue-400 animate-pulse">
+                            <div><b class="text-sm block">🍹 约定承诺特调饮料奖</b><span class="text-[10px] bg-white/20 px-1.5 py-0.5 rounded">突破目标分 ${s.CustomTargetScore} 成功！</span></div>
+                            <button onclick="redeem('Drink')" class="bg-white text-blue-600 font-black text-xs px-3 py-1.5 rounded-lg shadow hover:bg-blue-50 active:scale-95 transition">点击兑换饮料</button>
+                        </div>`;
+                } else if(s.CustomRewardStatus === "饮料申请中") {
+                    shelf.innerHTML += `
+                        <div class="bg-slate-100 p-3 rounded-xl border border-dashed text-slate-400 flex justify-between items-center">
+                            <div><b class="text-sm block text-slate-500">🍹 饮料正在快马加鞭倒酒中...</b><span class="text-[10px]">老师正在准备把冰饮料递给你</span></div>
+                            <span class="text-xs font-bold text-cyan-500 animate-bounce">🥤</span>
+                        </div>`;
+                } else if(s.CustomRewardStatus === "饮料已兑换") {
+                    shelf.innerHTML += `<div class="bg-blue-50 p-2.5 rounded-xl text-center text-xs text-blue-600 font-bold border border-blue-200">✅ 专属特调饮料已成功享用，冰爽！🍹</div>`;
+                } else {
+                    shelf.innerHTML += `
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center text-slate-400">
+                            <div><b class="text-xs block text-slate-600">🥤 饮料承诺约定线：${s.CustomTargetScore} 分</b><span class="text-[10px]">目前处于：${s.CustomRewardStatus}</span></div>
+                            <span class="text-xs italic font-medium text-slate-300">蓄力中</span>
+                        </div>`;
                 }
-            } catch (e) { 
-                alert("网络异常或链接未填对，请稍后再试。"); 
-                console.error(e);
+            }
+
+            if(count === 0) {
+                shelf.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs italic">🎯 本期暂时没有设定目标，期待下学期与老师的特调约定吧！</div>`;
             }
         }
+
+        async function redeem(type) {
+            const actionName = type === 'Reward' ? 'studentRedeemReward' : 'studentRedeemDrink';
+            // 立即让本地按钮变成申请中状态，杜绝连击
+            document.getElementById("couponShelf").innerHTML = `<div class="text-center text-xs text-slate-400">正在向云端递交申请...</div>`;
+            
+            await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: actionName, rowNumber: currentStudentRow }) });
+            query(); // 重新加载刷新最新状态
+        }
+
         function togglePay() { document.getElementById("payBox").classList.toggle("hidden"); }
     </script>
 </body>
