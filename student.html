@@ -117,15 +117,20 @@
                         colorLight : "#ffffff"
                     });
 
-                    // 出席历史日期渲染
+// 出席历史日期渲染 (优化为最新日期置顶反向排序)
                     const datesDiv = document.getElementById("resDates");
                     datesDiv.innerHTML = "";
                     if(student.AttendanceDates) {
-                        const datesArray = student.AttendanceDates.split(",").map(d => d.trim());
+                        // split(",") 切割日期，map() 去除空格
+                        const datesArray = student.AttendanceDates.split(",").map(d => d.trim()).filter(Boolean);
+                        
+                        // 🌟 核心：使用 .reverse() 颠倒数组，把最新的日期换到最前面
+                        datesArray.reverse(); 
+
                         datesArray.forEach(date => {
-                            if(!date) return;
                             const span = document.createElement("span");
-                            span.className = "bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded border border-blue-100 font-mono";
+                            // 给最新的一天加上专属的亮蓝色，增强视觉焦点
+                            span.className = "bg-blue-600 text-white text-xs px-2 py-0.5 rounded shadow-sm font-mono font-bold";
                             span.innerText = date;
                             datesDiv.appendChild(span);
                         });
