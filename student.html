@@ -26,7 +26,7 @@
             <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center text-center">
                 <span class="text-xs font-bold text-purple-700 mb-2">🎟️ 您的专属课堂电子打卡码</span>
                 <div id="qrcode" class="p-2 bg-white rounded-lg shadow-sm"></div>
-                <p class="text-[11px] text-purple-400 mt-2">上课时请向老师展示此码，即可“叮”一声快速完成签到</p>
+                <p class="text-[11px] text-purple-400 mt-2">上课时请向老师展示此码，即可快速扫码完成签到</p>
             </div>
 
             <div class="flex justify-between items-center px-1">
@@ -36,7 +36,7 @@
             
             <div id="statusCard" class="p-4 rounded-lg flex justify-between items-center">
                 <div>
-                    <span class="text-xs text-gray-500 block">剩余课时</span>
+                    <span class="text-xs text-gray-500 block">Remaining Lessons</span>
                     <span id="resLessons" class="text-2xl font-black">-</span>
                 </div>
                 <div class="text-right">
@@ -50,8 +50,8 @@
             </div>
 
             <div>
-                <span class="text-xs font-bold text-gray-500 block mb-2">📅 已出席日期记录：</span>
-                <div id="resDates" class="flex flex-wrap gap-1.5"></div>
+                <span class="text-xs font-bold text-gray-500 block mb-2">📅 已出席历史日期（最新置顶）：</span>
+                <div id="resDates" class="flex flex-col gap-2"></div>
             </div>
         </div>
 
@@ -61,9 +61,8 @@
     </div>
 
     <script>
-        // 🔴 请贴入你的 Google Apps Script Web App URL
-        const API_URL = "https://script.google.com/macros/s/AKfycby9CGLqOwKFvkqyeYlkN3h6SbqCn8anMI8iFdQyO6PHmpyzxtxVuGLcmphJlZ81mHZA/exec"; 
-        let qrGenerator = null;
+        // 🔴 记得在这里填入你的 Google Apps Script Web App URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzbalput2v0mcOrIZSrO6upum_A6dUvy43aqluFrgqV6jItTUPnOPotUGyHpGmKlZy4/exec"; 
 
         async function queryStudent() {
             const inputPhone = document.getElementById("searchPhone").value.trim();
@@ -77,7 +76,7 @@
             resultArea.classList.add("hidden");
             errorMsg.classList.add("hidden");
             debtAlert.classList.add("hidden");
-            qrDiv.innerHTML = ""; // 清空旧码
+            qrDiv.innerHTML = ""; 
 
             try {
                 const response = await fetch(API_URL);
@@ -88,7 +87,6 @@
                     document.getElementById("resName").innerText = student.Name;
                     document.getElementById("resLessons").innerText = `${student.RemainingLessons} 堂`;
                     
-                    // 动态计算该学生的4堂课学费
                     const singlePrice = parseFloat(student.PricePerLesson) || 37.5;
                     document.getElementById("dynamicPrice").innerText = (singlePrice * 4).toFixed(2);
 
@@ -108,34 +106,42 @@
                         document.getElementById("resStatus").className = "text-sm font-bold text-green-600";
                     }
 
-                    // 🆕 核心：生成专属于学生 ID 的二维码
+                    // 生成专属于学生 ID 的二维码
                     new QRCode(qrDiv, {
                         text: String(student.ID),
                         width: 140,
                         height: 140,
-                        colorDark : "#5b21b6", // 漂亮的深紫色码
+                        colorDark : "#5b21b6", 
                         colorLight : "#ffffff"
                     });
 
-// 出席历史日期渲染 (优化为最新日期置顶反向排序)
+                    // 🆕 高级日期反向渲染逻辑
                     const datesDiv = document.getElementById("resDates");
                     datesDiv.innerHTML = "";
+                    
                     if(student.AttendanceDates) {
-                        // split(",") 切割日期，map() 去除空格
+                        // 切割并过滤空字符串
                         const datesArray = student.AttendanceDates.split(",").map(d => d.trim()).filter(Boolean);
                         
-                        // 🌟 核心：使用 .reverse() 颠倒数组，把最新的日期换到最前面
+                        // 🌟 核心：执行反转，最新日期置顶
                         datesArray.reverse(); 
 
-                        datesArray.forEach(date => {
-                            const span = document.createElement("span");
-                            // 给最新的一天加上专属的亮蓝色，增强视觉焦点
-                            span.className = "bg-blue-600 text-white text-xs px-2 py-0.5 rounded shadow-sm font-mono font-bold";
-                            span.innerText = date;
-                            datesDiv.appendChild(span);
+                        datesArray.forEach((date, index) => {
+                            const dateRow = document.createElement("div");
+                            
+                            if (index === 0) {
+                                // 最新打卡的那天：高亮深蓝色，带NEW徽章
+                                dateRow.className = "flex justify-between items-center bg-blue-600 text-white text-xs px-3 py-2 rounded-lg shadow-sm font-mono font-bold";
+                                dateRow.innerHTML = `<span>${date}</span><span class="bg-blue-800 text-[10px] uppercase px-1.5 py-0.5 rounded text-white tracking-wider">最新出席</span>`;
+                            } else {
+                                // 历史老数据：淡灰色，不抢眼
+                                dateRow.className = "flex justify-between items-center bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-md font-mono border border-gray-200";
+                                dateRow.innerHTML = `<span>${date}</span><span class="text-gray-400 text-[10px]">历史记录</span>`;
+                            }
+                            datesDiv.appendChild(dateRow);
                         });
                     } else {
-                        datesDiv.innerHTML = `<span class="text-xs text-gray-400 italic">暂无出席记录</span>`;
+                        datesDiv.innerHTML = `<p class="text-xs text-gray-400 italic text-center py-2">暂无出席记录</p>`;
                     }
 
                     resultArea.classList.remove("hidden");
