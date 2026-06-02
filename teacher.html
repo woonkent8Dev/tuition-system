@@ -8,12 +8,12 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body class="bg-gray-100 p-4 md:p-8">
-    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow space-y-6">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow space-y-6">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">🎒 课室管理系统 - 教师后台</h1>
-                <p class="text-sm text-gray-500 mt-1">支持智能补签、资料修改、删除学生及 QR 码扫描打卡</p>
+                <p class="text-sm text-gray-500 mt-1">具备10种随机扫码赞美语、成绩追踪与RM30奖励核销系统</p>
             </div>
             <div class="flex flex-wrap gap-2 w-full md:w-auto">
                 <button onclick="toggleScanner()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg shadow font-medium transition flex items-center gap-1">
@@ -35,7 +35,7 @@
             <h3 class="text-sm font-bold text-blue-800 mb-3">➕ 快速添加新学生</h3>
             <form id="addStudentForm" onsubmit="addStudent(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <input type="text" id="newName" placeholder="学生姓名" required class="px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                <input type="text" id="newPhone" placeholder="手机号 (例: 60123456789)" required class="px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                <input type="text" id="newPhone" placeholder="手机号" required class="px-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 <div class="relative">
                     <span class="absolute left-3 top-2 text-gray-500 text-sm">RM</span>
                     <input type="number" id="newPrice" placeholder="每堂价格" value="37.5" step="0.1" required class="w-full pl-10 pr-3 py-2 bg-white border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
@@ -47,15 +47,15 @@
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-200 text-gray-700 text-sm">
-                        <th class="p-3">ID</th>
-                        <th class="p-3">姓名</th>
-                        <th class="p-3">手机号码 / 每堂单价</th>
-                        <th class="p-3">剩余堂数</th>
-                        <th class="p-3">估算余额</th>
-                        <th class="p-3">出勤记录</th>
-                        <th class="p-3">手动调整堂数</th>
-                        <th class="p-3">管理操作</th>
+                    <tr class="bg-gray-200 text-gray-700 text-xs uppercase tracking-wider">
+                        <th class="p-3">ID/姓名</th>
+                        <th class="p-3">基本资料</th>
+                        <th class="p-3">剩余课时/余额</th>
+                        <th class="p-3">100分制期末成绩</th>
+                        <th class="p-3">RM30奖励状态</th>
+                        <th class="p-3">出勤打卡</th>
+                        <th class="p-3">增减课时</th>
+                        <th class="p-3">管理</th>
                     </tr>
                 </thead>
                 <tbody id="studentTable" class="divide-y divide-gray-200 text-sm">
@@ -67,65 +67,112 @@
 
     <script>
         // 🔴 记得在这里填入你的 Google Apps Script Web App URL
-        const API_URL = "https://script.google.com/macros/s/AKfycbzbalput2v0mcOrIZSrO6upum_A6dUvy43aqluFrgqV6jItTUPnOPotUGyHpGmKlZy4/exec"; 
+        const API_URL = "https://script.google.com/macros/s/AKfycbxuvbhD9gsXwouPSCkW9dG8vGET3MojdWQggR6swef8yNgsJq2T7evcX5VQ4IZpdLen/exec"; 
         let studentsData = [];
         let html5QrcodeScanner = null;
+
+        // 🌟 10种随机扫码赞美鼓励语池
+        const compliments = [
+            "✨ 太棒了！今天又是充满活力和智慧的一天，加油！",
+            "🚀 知识就是力量！欢迎回到课室，今天也要超越昨天的自己！",
+            "💡 保持这份坚持，你正在默默走向卓越！",
+            "🌟 闪闪发光的努力从不骗人，今天也要元气满满地吸收新知识！",
+            "🎯 目标就在前方，你的每一次准时出席都是成功的基石！",
+            "🌈 你的潜力无可限量，期待你今天在课堂上的精彩表现！",
+            "🔥 专注的你最帅气/最美丽！踏实走好每一步吧！",
+            "👏 欢迎上课！用功读书的种子，终会开出最绚丽的花朵！",
+            "💎 每一点滴的积累，都在铸就大器晚成的你，我看好你！",
+            "👑 越努力越幸运！张开双手拥抱今天的新挑战吧！"
+        ];
 
         async function loadStudents() {
             try {
                 const response = await fetch(API_URL);
                 studentsData = await response.json();
                 renderTable();
-            } catch (error) {
-                alert("加载数据失败，请检查网络或API设置。");
-            }
+            } catch (error) { alert("数据加载失败"); }
         }
 
         function renderTable() {
             const tbody = document.getElementById("studentTable");
             tbody.innerHTML = "";
-
-            if(studentsData.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-400">暂无学员。</td></tr>`;
-                return;
-            }
+            if(studentsData.length === 0) { tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-400">暂无学员。</td></tr>`; return; }
 
             studentsData.forEach(student => {
                 const price = parseFloat(student.PricePerLesson) || 37.5;
                 const balance = student.RemainingLessons * price;
                 const isDebt = student.RemainingLessons <= 0;
+                
+                const lastS = student.LastScore || 0;
+                const currS = student.CurrentScore || 0;
+                const reward = student.RewardStatus || "无";
+
+                // 构筑奖励核销按钮外观
+                let rewardBadge = `<span class="text-gray-400">无资格</span>`;
+                if(reward === "未兑换") {
+                    rewardBadge = `<button onclick="claimReward(${student.rowNumber}, '${student.Name}')" class="bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold px-2 py-1 rounded shadow-sm animate-pulse">🎁 点击核销RM30</button>`;
+                } else if(reward === "已兑换") {
+                    rewardBadge = `<span class="bg-gray-200 text-gray-500 text-[11px] px-2 py-1 rounded">✅ 已成功兑换</span>`;
+                }
 
                 const tr = document.createElement("tr");
                 tr.className = isDebt ? "bg-red-50/60 hover:bg-red-100/50" : "hover:bg-gray-50";
                 tr.innerHTML = `
-                    <td class="p-3 text-gray-400 font-mono">#${student.ID}</td>
-                    <td class="p-3 font-semibold text-gray-800">${student.Name}</td>
                     <td class="p-3">
-                        <div class="text-gray-700 font-medium">${student.Phone}</div>
-                        <div class="text-xs text-gray-400">单价: RM ${price.toFixed(2)}</div>
+                        <span class="text-xs text-gray-400 font-mono block">#${student.ID}</span>
+                        <span class="font-bold text-gray-800">${student.Name}</span>
                     </td>
-                    <td class="p-3 font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}">${student.RemainingLessons} 堂</td>
-                    <td class="p-3 font-medium ${isDebt ? 'text-red-600' : 'text-green-600'}">RM ${balance.toFixed(2)}</td>
                     <td class="p-3">
-                        <button onclick="checkInPrompt(${student.rowNumber}, '${student.Name}')" class="bg-blue-600 text-white px-2.5 py-1.5 rounded hover:bg-blue-700 text-xs font-bold shadow-sm flex items-center gap-1">
-                            📅 补录/手动打卡
-                        </button>
+                        <div class="text-gray-700 text-xs">${student.Phone}</div>
+                        <div class="text-[11px] text-gray-400">单价: RM ${price.toFixed(2)}</div>
+                    </td>
+                    <td class="p-3">
+                        <span class="font-bold block ${isDebt ? 'text-red-600' : 'text-green-600'}">${student.RemainingLessons} 堂</span>
+                        <span class="text-xs text-gray-400">RM ${balance.toFixed(2)}</span>
+                    </td>
+                    <td class="p-3">
+                        <div class="text-xs text-gray-600">上期: <span class="font-semibold">${lastS}</span> | 本期: <span class="font-bold text-blue-600">${currS}</span></div>
+                        <button onclick="editScoresPrompt(${student.rowNumber}, ${lastS}, ${currS})" class="text-blue-500 text-[11px] hover:underline block mt-0.5">✏️ 录入成绩</button>
+                    </td>
+                    <td class="p-3">${rewardBadge}</td>
+                    <td class="p-3">
+                        <button onclick="checkInPrompt(${student.rowNumber}, '${student.Name}')" class="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-xs font-medium">📅 补签/打卡</button>
                     </td>
                     <td class="p-3">
                         <div class="flex space-x-1">
-                            <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold hover:bg-green-200">+1</button>
-                            <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold hover:bg-green-700">+4堂</button>
-                            <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold hover:bg-gray-300">-1</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-xs font-bold hover:bg-green-200">+1</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-600 text-white px-1.5 py-0.5 rounded text-xs font-bold hover:bg-green-700">+4</button>
+                            <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded text-xs font-bold hover:bg-gray-300">-1</button>
                         </div>
                     </td>
-                    <td class="p-3 space-x-2">
-                        <button onclick="editStudentPrompt(${student.rowNumber}, '${student.Phone}', ${price})" class="text-blue-600 hover:underline text-xs">修改</button>
-                        <button onclick="deleteStudent(${student.rowNumber}, '${student.Name}')" class="text-red-500 hover:underline text-xs">删除</button>
-                        <button onclick="sendWhatsApp('${student.Phone}', 'remind', '${student.Name}', ${student.RemainingLessons}, ${price})" class="text-orange-600 hover:underline text-xs font-bold">催缴</button>
+                    <td class="p-3 space-x-1">
+                        <button onclick="editStudentPrompt(${student.rowNumber}, '${student.Phone}', ${price})" class="text-gray-500 hover:text-blue-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg></button>
+                        <button onclick="deleteStudent(${student.rowNumber}, '${student.Name}')" class="text-red-400 hover:text-red-600 ml-1">❌</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
+        }
+
+        // 🆕 录入成绩弹窗
+        async function editScoresPrompt(rowNumber, oldLast, oldCurr) {
+            const lastS = prompt("请输入【上期考试分数】(0-100):", oldLast);
+            if(lastS === null) return;
+            const currS = prompt("请输入【本期考试分数】(0-100):", oldCurr);
+            if(currS === null) return;
+
+            const res = await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "updateScores", rowNumber, lastScore: parseInt(lastS)||0, currentScore: parseInt(currS)||0 })
+            });
+            if(res.ok) { alert("成绩同步成功！若本期达90分，已自动开放RM30奖励权。"); loadStudents(); }
+        }
+
+        // 🆕 核销奖励券
+        async function claimReward(rowNumber, name) {
+            if(!confirm(`家长是否已出示 [${name}] 的 RM30 兑换券？确认后将在本月学费中扣除 RM30，该券将失效。`)) return;
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "claimReward", rowNumber }) });
+            if(res.ok) { alert("核销成功！表格已标记为‘已兑换’。"); loadStudents(); }
         }
 
         async function addStudent(event) {
@@ -133,45 +180,16 @@
             const name = document.getElementById("newName").value.trim();
             const phone = document.getElementById("newPhone").value.trim();
             const price = document.getElementById("newPrice").value;
-
-            const res = await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "addStudent", name, phone, price: parseFloat(price) })
-            });
-            if(res.ok) { 
-                document.getElementById("addStudentForm").reset();
-                document.getElementById("newPrice").value = "37.5";
-                loadStudents(); 
-            }
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "addStudent", name, phone, price: parseFloat(price) }) });
+            if(res.ok) { document.getElementById("addStudentForm").reset(); document.getElementById("newPrice").value = "37.5"; loadStudents(); }
         }
 
-        // 🆕 升级版手动打卡：支持自由选择日期（事后补录核心）
         async function checkInPrompt(rowNumber, name) {
             const today = new Date().toISOString().split('T')[0];
-            
-            // 弹窗要求输入日期，默认带入今天日期
-            const selectedDate = prompt(`请输入要为 [${name}] 记录出席的日期 (格式: YYYY-MM-DD):`, today);
-            
-            // 如果用户点击了取消，或者什么都没输，则终止操作
-            if (selectedDate === null || selectedDate.trim() === "") return;
-
-            // 验证日期格式
-            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-            if (!dateRegex.test(selectedDate.trim())) {
-                alert("❌ 日期格式不正确，请输入类似 2026-06-02 的格式！");
-                return;
-            }
-
-            if(!confirm(`确定为 ${name} 记录 [${selectedDate}] 的出勤，并扣除1堂课吗？`)) return;
-
-            const res = await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "updateAttendance", rowNumber, date: selectedDate.trim() })
-            });
-            if(res.ok) { 
-                alert(`🎉 成功补录！[${name}] 在 ${selectedDate} 的出勤已记入。`); 
-                loadStudents(); 
-            }
+            const selectedDate = prompt(`为 [${name}] 记录出席。确认日期 (YYYY-MM-DD):`, today);
+            if (!selectedDate || selectedDate.trim() === "") return;
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "updateAttendance", rowNumber, date: selectedDate.trim() }) });
+            if(res.ok) { alert("补录成功！"); loadStudents(); }
         }
 
         async function adjustLessons(rowNumber, amount) {
@@ -180,35 +198,26 @@
         }
 
         async function editStudentPrompt(rowNumber, oldPhone, oldPrice) {
-            const newPhone = prompt("请输入新的手机号码:", oldPhone);
-            if (newPhone === null) return;
-            const newPrice = prompt("请输入新的每堂课价格 (RM):", oldPrice);
-            if (newPrice === null) return;
-
-            const res = await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "editStudent", rowNumber, phone: newPhone.trim(), price: parseFloat(newPrice) })
-            });
-            if(res.ok) { alert("修改成功！"); loadStudents(); }
+            const newPhone = prompt("修改手机号:", oldPhone); if (newPhone === null) return;
+            const newPrice = prompt("修改单价 (RM):", oldPrice); if (newPrice === null) return;
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "editStudent", rowNumber, phone: newPhone.trim(), price: parseFloat(newPrice) }) });
+            if(res.ok) { loadStudents(); }
         }
 
         async function deleteStudent(rowNumber, name) {
-            if(!confirm(`⚠️ 严重警告：你确定要彻底删除学生 [${name}] 吗？删除后其所有记录将消失且不可恢复！`)) return;
+            if(!confirm(`警告：确定删除 [${name}] 吗？`)) return;
             const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "deleteStudent", rowNumber }) });
-            if(res.ok) { alert("学生已安全移除。"); loadStudents(); }
+            if(res.ok) { loadStudents(); }
         }
 
-        // 相机扫码控制
+        // 相机扫码与随机奖励金句展示机制
         function toggleScanner() {
             const container = document.getElementById("scannerContainer");
             if (container.classList.contains("hidden")) {
                 container.classList.remove("hidden");
                 html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
                 html5QrcodeScanner.render(onScanSuccess);
-            } else {
-                container.classList.add("hidden");
-                if(html5QrcodeScanner) html5QrcodeScanner.clear();
-            }
+            } else { container.classList.add("hidden"); if(html5QrcodeScanner) html5QrcodeScanner.clear(); }
         }
 
         async function onScanSuccess(decodedText) {
@@ -216,42 +225,32 @@
             document.getElementById("scannerContainer").classList.add("hidden");
 
             const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(API_URL, {
-                method: "POST",
-                body: JSON.stringify({ action: "updateAttendance", studentId: decodedText, date: today })
-            });
+            const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "updateAttendance", studentId: decodedText, date: today }) });
             const data = await res.json();
             if(data.status === "success") {
-                alert(`🎉 QR码扫码成功！学员: ${data.name} 已自动扣除1课时并记入今日。`);
+                // 🌟 核心：从10句鼓励语中根据概率随机抽一句弹窗显现
+                const randomIndex = Math.floor(Math.random() * compliments.length);
+                const phrase = compliments[randomIndex];
+                
+                alert(`🔔 叮！扫码成功！\n\n【学生姓名】：${data.name}\n\n${phrase}`);
                 loadStudents();
-            } else {
-                alert("❌ 打卡失败: " + (data.message || "无效的二维码"));
-            }
+            } else { alert("❌ 打卡失败: " + data.message); }
         }
 
         function sendWhatsApp(phone, type, name, lessons, pricePerLesson) {
             const price = pricePerLesson || 37.5;
             const totalCost = (price * 4).toFixed(2);
-            let message = "";
-            if (type === 'absent') {
-                message = `您好，特此通知：${name} 同学今天未出席课堂。如有请假请提前告知，谢谢。`;
-            } else if (type === 'remind') {
-                const absLessons = Math.abs(lessons);
-                message = `您好，提醒您：${name} 同学的学费已到期（目前欠缴 ${absLessons} 堂课 / 或新学期需要续费），4堂课学费为 RM ${totalCost}，请尽快安排缴费，谢谢您的支持！`;
-            }
+            let message = `您好，提醒您：${name} 同学的学费已到期，4堂课学费为 RM ${totalCost}，请尽快安排缴费，谢谢支持！`;
             window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
         }
 
         function remindAllDebts() {
             const debtStudents = studentsData.filter(s => s.RemainingLessons <= 0);
             if(debtStudents.length === 0) { alert("目前没有欠费的同学！"); return; }
-            if(confirm(`确定依次向这 ${debtStudents.length} 位同学发送催缴提示吗？`)) {
-                debtStudents.forEach((student, idx) => {
-                    setTimeout(() => { sendWhatsApp(student.Phone, 'remind', student.Name, student.RemainingLessons, student.PricePerLesson); }, idx * 1500);
-                });
+            if(confirm(`群发催缴给 ${debtStudents.length} 位同学？`)) {
+                debtStudents.forEach((student, idx) => { setTimeout(() => { sendWhatsApp(student.Phone, 'remind', student.Name, student.RemainingLessons, student.PricePerLesson); }, idx * 1500); });
             }
         }
-
         window.onload = loadStudents;
     </script>
 </body>
