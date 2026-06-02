@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课室管理系统 - 教师端</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">🎒 教师点名与费用管理</h1>
+            <button onclick="remindAllDebts()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded shadow transition">
+                🚨 一键催缴 (所有欠费同学)
+            </button>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-700">
+                        <th class="p-3">姓名</th>
+                        <th class="p-3">手机号码</th>
+                        <th class="p-3">剩余堂数</th>
+                        <th class="p-3">估算余额/欠款</th>
+                        <th class="p-3">操作打卡 (今天)</th>
+                        <th class="p-3">调整堂数</th>
+                        <th class="p-3">手动通知</th>
+                    </tr>
+                </thead>
+                <tbody id="studentTable" class="divide-y divide-gray-200">
+                    <tr><td colspan="7" class="p-4 text-center text-gray-500">正在加载学生数据...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 🔴 请替换为你自己的 Google Apps Script Web App URL
+        const API_URL = "https://script.google.com/macros/s/AKfycbzsTF2LC4o15ibOx0B-hNerfGjlCmAprDZww3XegxkHf-g_AgcXVOSpzVI4zdyFsuzm/exec"; 
+        let studentsData = [];
+
+        async function loadStudents() {
+            try {
+                const response = await fetch(API_URL);
+                studentsData = await response.json();
+                renderTable();
+            } catch (error) {
+                alert("加载数据失败，请检查配置。");
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("studentTable");
+            tbody.innerHTML = "";
+
+            studentsData.forEach(student => {
+                const price = student.PricePerLesson || 37.5;
+                const balance = student.RemainingLessons * price;
+                const isDebt = student.RemainingLessons <= 0;
+
+                const tr = document.createElement("tr");
+                tr.className = isDebt ? "bg-red-50" : "";
+                tr.innerHTML = `
+                    <td class="p-3 font-semibold">${student.Name}</td>
+                    <td class="p-3 text-gray-600">${student.Phone}</td>
+                    <td class="p-3 font-bold ${isDebt ? 'text-red-600' : 'text-green-600'}">${student.RemainingLessons} 堂</td>
+                    <td class="p-3 font-medium ${isDebt ? 'text-red-600' : 'text-green-600'}">RM ${balance.toFixed(2)}</td>
+                    <td class="p-3">
+                        <button onclick="checkIn(${student.rowNumber}, '${student.Name}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">出席打卡 (-1)</button>
+                    </td>
+                    <td class="p-3 flex space-x-1">
+                        <button onclick="adjustLessons(${student.rowNumber}, 1)" class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">+1堂</button>
+                        <button onclick="adjustLessons(${student.rowNumber}, 4)" class="bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">+4堂</button>
+                        <button onclick="adjustLessons(${student.rowNumber}, -1)" class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs font-bold">-1堂</button>
+                    </td>
+                    <td class="p-3 space-x-1">
+                        <button onclick="sendWhatsApp('${student.Phone}', 'absent', '${student.Name}')" class="text-orange-600 hover:underline text-sm">通知缺席</button>
+                        <button onclick="sendWhatsApp('${student.Phone}', 'remind', '${student.Name}', ${student.RemainingLessons})" class="text-red-600 hover:underline text-sm font-semibold">催缴</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function checkIn(rowNumber, name) {
+            const today = new Date().toISOString().split('T')[0];
+            if(!confirm(`确定要为 ${name} 记录今日 (${today}) 出席并扣除一堂课吗？`)) return;
+
+            const res = await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "updateAttendance", rowNumber, date: today })
+            });
+            if(res.ok) { alert("打卡成功！"); loadStudents(); }
+        }
+
+        async function adjustLessons(rowNumber, amount) {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "adjustLessons", rowNumber, amount })
+            });
+            if(res.ok) { loadStudents(); }
+        }
+
+        function sendWhatsApp(phone, type, name, lessons = 0) {
+            let message = "";
+            if (type === 'absent') {
+                message = `您好，特此通知：${name} 同学今天未出席课堂。如有请假请提前告知，谢谢。`;
+            } else if (type === 'remind') {
+                const absLessons = Math.abs(lessons);
+                message = `您好，提醒您：${name} 同学的学费已到期（目前欠缴 ${absLessons} 堂课 / 或新学期需要续费），四堂课学费为 RM 150，请尽快安排缴费，谢谢您的支持！`;
+            }
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        }
+
+        function remindAllDebts() {
+            const debtStudents = studentsData.filter(s => s.RemainingLessons <= 0);
+            if(debtStudents.length === 0) {
+                alert("目前没有欠费或需要续费的同学！");
+                return;
+            }
+            if(confirm(`一共筛选出 ${debtStudents.length} 位需要缴费的同学，将依次打开 WhatsApp 窗口发送，确定吗？`)) {
+                debtStudents.forEach((student, index) => {
+                    setTimeout(() => {
+                        sendWhatsApp(student.Phone, 'remind', student.Name, student.RemainingLessons);
+                    }, index * 1000); // 延迟打开防止浏览器拦截
+                });
+            }
+        }
+
+        window.onload = loadStudents;
+    </script>
+</body>
+</html>
