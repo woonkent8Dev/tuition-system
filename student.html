@@ -1,104 +1,114 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学员服务中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-gray-50 flex flex-col items-center p-4">
-    <div class="w-full max-w-md bg-white p-5 rounded-xl shadow-md space-y-4 my-2 border">
-        <div class="text-center"><h2 class="text-xl font-bold text-gray-800">🏫 学员服务中心</h2></div>
-        <div class="space-y-2">
-            <input type="text" id="phone" placeholder="输入手机号查询" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-            <button onclick="query()" class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg">🔍 确认查询</button>
+    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md space-y-5 my-2 border">
+        
+        <div class="text-center">
+            <h2 class="text-xl font-bold text-gray-800">🏫 学员服务中心</h2>
+            <p class="text-xs text-gray-500 mt-1">查询剩余课堂与成绩记录</p>
+        </div>
+        
+        <div class="space-y-3">
+            <input type="text" id="phone" placeholder="请输入绑定的手机号" class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+            <button onclick="query()" class="w-full bg-blue-600 text-white font-medium py-2 rounded-lg">🔍 立即查询</button>
         </div>
 
         <div id="resArea" class="hidden border-t pt-4 space-y-4">
-            <div id="qrcode" class="p-2 bg-white rounded shadow-sm mx-auto w-fit border border-purple-100"></div>
-            <div class="grid grid-cols-2 gap-2 text-center">
-                <div class="bg-gray-50 p-2 rounded border font-bold"><small class="text-gray-400 block">姓名</small><span id="resName"></span></div>
-                <div class="bg-gray-50 p-2 rounded border font-bold"><small class="text-gray-400 block">剩余课时</small><span id="resL"></span></div>
+            
+            <div id="qrcode" class="p-2 bg-white rounded shadow-sm mx-auto w-fit border border-gray-200"></div>
+            
+            <div class="bg-gray-50 p-3 rounded-lg border flex justify-between items-center">
+                <div>
+                    <span class="text-xs text-gray-500 block">姓名：<b id="resName" class="text-gray-800 text-sm"></b></span>
+                    <span class="text-xs text-gray-500 block mt-1">剩余：<b id="resL" class="text-lg text-blue-600"></b> 堂</span>
+                </div>
+                <div id="debtAlert" class="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded hidden">需尽快缴费</div>
             </div>
 
-            <div class="bg-gray-50 p-3 rounded-xl border space-y-2">
-                <span class="text-xs font-bold text-gray-700 block">📊 成绩表现 (100分制)</span>
-                <div class="grid grid-cols-3 text-center gap-2">
-                    <div class="bg-white p-2 rounded border text-xs">上期<br><b id="resLast"></b></div>
-                    <div class="bg-white p-2 rounded border text-xs text-blue-600">本期<br><b id="resCurr"></b></div>
-                    <div id="trend" class="p-2 rounded border text-[10px] flex items-center justify-center font-black"></div>
+            <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                <span class="text-xs font-bold text-gray-700 block mb-2">📊 学术与奖励记录</span>
+                <div class="text-sm text-gray-600 mb-1">上期分数：<b id="resLast"></b> | 本期分数：<b id="resCurr" class="text-blue-600"></b></div>
+                <div id="drinkStatus" class="text-xs font-bold text-orange-600"></div>
+            </div>
+
+            <button onclick="togglePay()" class="w-full bg-gray-800 text-white text-xs py-2 rounded-lg font-bold mt-2">💳 展开学费付款码</button>
+            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-gray-100 rounded-lg">
+                <div class="bg-white p-2 rounded text-center">
+                    <span class="font-bold text-blue-600 text-[10px]">Touch 'n Go</span>
+                    <img src="tngo.JPG" class="w-full h-auto mx-auto border mt-1" alt="TnG">
+                </div>
+                <div class="bg-white p-2 rounded text-center">
+                    <span class="font-bold text-red-600 text-[10px]">Bank Transfer</span>
+                    <img src="bank.jpg" class="w-full h-auto mx-auto border mt-1" alt="Bank">
                 </div>
             </div>
 
-            <div id="rewardPack" class="space-y-2 hidden">
-                <span class="text-xs font-bold text-gray-500 block">🎁 我的礼券包</span>
-                <div id="rewardList" class="space-y-2"></div>
-            </div>
-
-            <button onclick="togglePay()" class="w-full bg-gray-800 text-white text-xs py-2 rounded">💳 点击展开学费付款码</button>
-            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-2 bg-gray-100 rounded">
-                <div class="bg-white p-1 rounded text-center"><small class="font-bold text-blue-600">TnG</small><img src="tngo.jpg" class="w-24 h-24 mx-auto"></div>
-                <div class="bg-white p-1 rounded text-center"><small class="font-bold text-red-600">Bank</small><img src="bank.jpg" class="w-24 h-24 mx-auto"></div>
-            </div>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbxaEKXEi0knlmfW63URckZlUBCfvqAYhYOkr469z6a1OPxMB9fpwpvM9OnvzlIRv1xQ/exec"; 
+        // 🔴 填入你的 Google Apps Script 网址
+        const API_URL = "https://script.google.com/macros/s/AKfycbxqvJFuhJ-15UqiIFPgjup1JYqDBjXNr__f_AOKninXVjAP8t8vpyE0yWHd3guK-vtw/exec"; 
+        
         async function query() {
             const resArea = document.getElementById("resArea");
             const phone = document.getElementById("phone").value.trim();
             const qr = document.getElementById("qrcode");
-            if(!phone) return;
+            
+            if(!phone) { alert("手机号不能为空"); return; }
             qr.innerHTML = ""; resArea.classList.add("hidden");
 
             try {
                 const response = await fetch(API_URL);
                 const students = await response.json();
+                
+                // 防护机制：如果读取到的不是数组，说明后台出错了
+                if(!Array.isArray(students)) {
+                    alert("后台数据格式错误！请确认你的 Google Script 已成功发布为 New Version！");
+                    return;
+                }
+
                 const s = students.find(x => String(x.Phone).trim() === phone);
 
                 if(s) {
                     document.getElementById("resName").innerText = s.Name;
-                    document.getElementById("resL").innerText = s.RemainingLessons + " 堂";
-                    document.getElementById("resLast").innerText = s.LastScore;
-                    document.getElementById("resCurr").innerText = s.CurrentScore;
+                    document.getElementById("resL").innerText = s.RemainingLessons;
                     
-                    const diff = s.CurrentScore - s.LastScore;
-                    const trend = document.getElementById("trend");
-                    if(diff > 0) trend.className = "p-2 rounded border bg-green-50 text-green-600 font-bold", trend.innerText = "📈 +"+diff;
-                    else if(diff < 0) trend.className = "p-2 rounded border bg-red-50 text-red-600 font-bold", trend.innerText = "📉 "+diff;
-                    else trend.className = "p-2 rounded border bg-gray-50 text-gray-500 font-bold", trend.innerText = "持平";
-
-                    const rewardList = document.getElementById("rewardList");
-                    rewardList.innerHTML = "";
-                    let hasR = false;
-
-                    // 学费券
-                    if(String(s.RewardStatus).includes("未兑换")) {
-                        hasR = true;
-                        rewardList.innerHTML += `<div class="bg-amber-400 p-3 rounded-lg text-white font-bold text-xs flex justify-between animate-pulse"><span>🎁 学费减免券 ${s.RewardStatus.replace("未兑换","")}</span><span>待使用</span></div>`;
-                    } else if(s.RewardStatus === "已兑换") {
-                        hasR = true;
-                        rewardList.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg text-gray-400 text-xs border border-dashed flex justify-between"><span>已扣学费奖励</span><span>✅ 已核销</span></div>`;
+                    if(s.RemainingLessons <= 0) {
+                        document.getElementById("debtAlert").classList.remove("hidden");
+                    } else {
+                        document.getElementById("debtAlert").classList.add("hidden");
                     }
 
-                    // 饮料券
-                    if(parseInt(s.CustomTargetScore) > 0) {
-                        hasR = true;
-                        if(s.CustomRewardStatus === "饮料未兑换") {
-                            rewardList.innerHTML += `<div class="bg-blue-500 p-3 rounded-lg text-white font-bold text-xs flex justify-between animate-pulse"><span>🍹 爱心特调饮料奖 (目标达标)</span><span>待领取</span></div>`;
-                        } else if(s.CustomRewardStatus === "饮料已兑换") {
-                            rewardList.innerHTML += `<div class="bg-gray-100 p-3 rounded-lg text-gray-400 text-xs border border-dashed flex justify-between"><span>饮料奖</span><span>✅ 已畅饮</span></div>`;
-                        } else {
-                            rewardList.innerHTML += `<div class="bg-gray-50 p-3 rounded-lg text-gray-500 text-xs border-dashed border flex justify-between"><span>🥤 饮料目标：${s.CustomTargetScore} 分</span><span>🎯 蓄力中</span></div>`;
-                        }
+                    document.getElementById("resLast").innerText = s.LastScore || 0;
+                    document.getElementById("resCurr").innerText = s.CurrentScore || 0;
+                    
+                    if(s.CustomTargetScore > 0) {
+                        let txt = `目标分: ${s.CustomTargetScore}。`;
+                        if(s.CustomRewardStatus === "饮料未兑换") txt += "🎉 达成！请向老师领取饮料";
+                        else if(s.CustomRewardStatus === "饮料已兑换") txt += "✅ 饮料已领";
+                        else txt += "加油冲刺！";
+                        document.getElementById("drinkStatus").innerText = txt;
+                    } else {
+                        document.getElementById("drinkStatus").innerText = "";
                     }
 
-                    if(hasR) document.getElementById("rewardPack").classList.remove("hidden");
-                    new QRCode(qr, { text: String(s.ID), width: 120, height: 120 });
+                    new QRCode(qr, { text: String(s.ID), width: 130, height: 130 });
                     resArea.classList.remove("hidden");
-                } else { alert("查无此人"); }
-            } catch (e) { alert("网络异常"); }
+                } else { 
+                    alert("查无此人，请确认手机号是否输入正确。"); 
+                }
+            } catch (e) { 
+                alert("网络异常或链接未填对，请稍后再试。"); 
+                console.error(e);
+            }
         }
         function togglePay() { document.getElementById("payBox").classList.toggle("hidden"); }
     </script>
