@@ -19,11 +19,11 @@
             <button onclick="query()" class="bg-indigo-600 text-white font-bold px-5 py-2 rounded-xl text-sm shadow">查询</button>
         </div>
 
-        <div id="resArea" class="hidden border-t pt-4 space-y-4 animate-in fade-in duration-200">
+        <div id="resArea" class="hidden border-t pt-4 space-y-4">
             
             <div class="text-center">
                 <div id="qrcode" class="p-2 bg-white rounded-xl shadow-md mx-auto w-fit border border-slate-100"></div>
-                <p class="text-[10px] text-slate-400 mt-1 font-medium">上课时请向老师出示此码快速打卡</p>
+                <p class="text-[10px] text-indigo-600 mt-1 font-bold animate-pulse">📷 老师用任意相机扫描上方QR码即可一秒签到</p>
             </div>
             
             <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg">
@@ -63,7 +63,8 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbx44EVa57BowSUDaCz-LaH68gIgu6yPJsgNquCj2y_wjBZ27AOWEJZsUZyZd2cWnjTL/exec"; 
+        // 🔴 务必换成你重新部署后的 /exec 网址
+        const API_URL = "https://script.google.com/macros/s/AKfycbybJTdVnyxWiyoKn41-qW4nGLAhfEJCaHqKkNXBJSE7Q9NmKKL_pI8tEmr44-nz5OKz/exec"; 
         let currentStudentRow = null;
 
         async function query() {
@@ -83,10 +84,12 @@
                     document.getElementById("resLast").innerText = (s.LastScore || 0) + "分";
                     document.getElementById("resCurr").innerText = (s.CurrentScore || 0) + "分";
                     
-                    // 渲染动感礼券架
                     renderCoupons(s);
 
-                    new QRCode(document.getElementById("qrcode"), { text: String(s.ID), width: 120, height: 120 });
+                    // 🔥【核心修正】：不再只生成数字，而是将二维码打包成带有自动化指令的动态 URL！
+                    const magicScanUrl = `${API_URL}?action=scan&studentId=${s.ID}`;
+                    new QRCode(document.getElementById("qrcode"), { text: magicScanUrl, width: 130, height: 130 });
+                    
                     document.getElementById("resArea").classList.remove("hidden");
                 } else { alert("查无此人，请确保手机号输入无误。"); }
             } catch (e) { alert("网络异常，请刷新重试"); }
@@ -97,7 +100,6 @@
             shelf.innerHTML = "";
             let count = 0;
 
-            // 1. 处理学费减免礼券
             if(String(s.RewardStatus).includes("未兑换")) {
                 count++;
                 const value = s.RewardStatus.replace("未兑换","");
@@ -115,10 +117,9 @@
                     </div>`;
             } else if(s.RewardStatus === "已兑换") {
                 count++;
-                shelf.innerHTML += `<div class="bg-emerald-50 p-2.5 rounded-xl text-center text-xs text-emerald-600 font-bold border border-emerald-200">🎉 恭喜！本期学费券已成功核销抵消！</div>`;
+                shelf.innerHTML += `<div class="bg-emerald-50 p-2.5 rounded-xl text-center text-xs text-emerald-600 font-bold border border-emerald-200">🎉 本期学费券已成功核销抵消！</div>`;
             }
 
-            // 2. 处理因人而异的特调饮料奖
             if(parseInt(s.CustomTargetScore) > 0) {
                 count++;
                 if(s.CustomRewardStatus === "饮料未兑换") {
@@ -145,17 +146,15 @@
             }
 
             if(count === 0) {
-                shelf.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs italic">🎯 本期暂时没有设定目标，期待下学期与老师的特调约定吧！</div>`;
+                shelf.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs italic">🎯 本期暂时没有设定目标</div>`;
             }
         }
 
         async function redeem(type) {
             const actionName = type === 'Reward' ? 'studentRedeemReward' : 'studentRedeemDrink';
-            // 立即让本地按钮变成申请中状态，杜绝连击
             document.getElementById("couponShelf").innerHTML = `<div class="text-center text-xs text-slate-400">正在向云端递交申请...</div>`;
-            
             await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: actionName, rowNumber: currentStudentRow }) });
-            query(); // 重新加载刷新最新状态
+            query(); 
         }
 
         function togglePay() { document.getElementById("payBox").classList.toggle("hidden"); }
