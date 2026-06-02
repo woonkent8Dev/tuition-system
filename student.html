@@ -5,82 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>学生中心 - 出勤与学费查询</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col justify-center items-center p-4">
-    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md border border-gray-100">
-        <h2 class="text-xl font-bold text-center text-gray-800 mb-2">🏫 学员服务中心</h2>
-        <p class="text-center text-sm text-gray-500 mb-6">请输入登记的手机号码查询出勤与学费</p>
+    <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md border border-gray-100 space-y-6">
+        <div class="text-center">
+            <h2 class="text-xl font-bold text-gray-800">🏫 学员服务中心</h2>
+            <p class="text-xs text-gray-500 mt-1">输入登记的手机号码查询出勤与获取专属打卡QR码</p>
+        </div>
         
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">手机号码</label>
-                <input type="text" id="searchPhone" placeholder="例如: 60123456789" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <button onclick="queryStudent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg shadow transition">
+        <div class="space-y-3">
+            <input type="text" id="searchPhone" placeholder="请输入手机号 (例: 60123456789)" class="w-full px-4 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+            <button onclick="queryStudent()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg shadow transition text-sm">
                 🔍 立即查询
             </button>
         </div>
 
-        <div id="resultArea" class="mt-6 hidden border-t pt-4 space-y-4">
-            <div class="flex justify-between items-center">
+        <div id="resultArea" class="hidden border-t pt-4 space-y-5">
+            
+            <div class="bg-purple-50 p-4 rounded-xl border border-purple-100 flex flex-col items-center text-center">
+                <span class="text-xs font-bold text-purple-700 mb-2">🎟️ 您的专属课堂电子打卡码</span>
+                <div id="qrcode" class="p-2 bg-white rounded-lg shadow-sm"></div>
+                <p class="text-[11px] text-purple-400 mt-2">上课时请向老师展示此码，即可“叮”一声快速完成签到</p>
+            </div>
+
+            <div class="flex justify-between items-center px-1">
                 <span class="text-gray-500 text-sm">学生姓名</span>
                 <span id="resName" class="font-bold text-gray-800 text-lg">-</span>
             </div>
             
-            <div class="p-4 rounded-lg bg-gray-50 flex justify-between items-center" id="statusCard">
+            <div id="statusCard" class="p-4 rounded-lg flex justify-between items-center">
                 <div>
-                    <span class="text-xs text-gray-500 uppercase block">剩余课时</span>
+                    <span class="text-xs text-gray-500 block">剩余课时</span>
                     <span id="resLessons" class="text-2xl font-black">-</span>
                 </div>
                 <div class="text-right">
-                    <span class="text-xs text-gray-500 uppercase block">学费状态</span>
+                    <span class="text-xs text-gray-500 block">学费状态</span>
                     <span id="resStatus" class="text-sm font-bold">-</span>
                 </div>
             </div>
 
-            <div id="debtAlert" class="bg-red-100 text-red-700 p-3 rounded-lg text-sm hidden font-medium">
-                ⚠️ 提示：您的课时已用完或处于拖欠状态，为免影响上课，请联系老师安排缴费（RM 150 / 4堂）。
+            <div id="debtAlert" class="bg-red-100 text-red-700 p-3 rounded-lg text-xs hidden font-medium leading-relaxed">
+                ⚠️ 提示：您的课时已用完或处于拖欠状态，为免影响上课，请联系老师安排缴费（RM <span id="dynamicPrice">150.00</span> / 4堂）。
             </div>
 
             <div>
-                <span class="text-sm font-medium text-gray-700 block mb-2">📅 已出席日期记录：</span>
-                <div id="resDates" class="flex flex-wrap gap-2">
-                    </div>
+                <span class="text-xs font-bold text-gray-500 block mb-2">📅 已出席日期记录：</span>
+                <div id="resDates" class="flex flex-wrap gap-1.5"></div>
             </div>
         </div>
 
-        <div id="errorMsg" class="mt-4 text-center text-sm text-red-500 font-medium hidden">
-            ❌ 未找到该手机号对应的学员信息，请检查输入或联系老师。
+        <div id="errorMsg" class="text-center text-sm text-red-500 font-medium hidden">
+            ❌ 未找到该手机号对应的学员信息，请联系老师。
         </div>
     </div>
 
     <script>
-        // 🔴 请替换为你自己的 Google Apps Script Web App URL
+        // 🔴 请贴入你的 Google Apps Script Web App URL
         const API_URL = "https://script.google.com/macros/s/AKfycby9CGLqOwKFvkqyeYlkN3h6SbqCn8anMI8iFdQyO6PHmpyzxtxVuGLcmphJlZ81mHZA/exec"; 
+        let qrGenerator = null;
 
         async function queryStudent() {
             const inputPhone = document.getElementById("searchPhone").value.trim();
             const resultArea = document.getElementById("resultArea");
             const errorMsg = document.getElementById("errorMsg");
             const debtAlert = document.getElementById("debtAlert");
+            const qrDiv = document.getElementById("qrcode");
 
             if(!inputPhone) { alert("请输入手机号"); return; }
 
             resultArea.classList.add("hidden");
             errorMsg.classList.add("hidden");
             debtAlert.classList.add("hidden");
+            qrDiv.innerHTML = ""; // 清空旧码
 
             try {
                 const response = await fetch(API_URL);
                 const students = await response.json();
-                
-                // 匹配手机号
                 const student = students.find(s => String(s.Phone).trim() === inputPhone);
 
                 if(student) {
                     document.getElementById("resName").innerText = student.Name;
                     document.getElementById("resLessons").innerText = `${student.RemainingLessons} 堂`;
                     
+                    // 动态计算该学生的4堂课学费
+                    const singlePrice = parseFloat(student.PricePerLesson) || 37.5;
+                    document.getElementById("dynamicPrice").innerText = (singlePrice * 4).toFixed(2);
+
                     const isDebt = student.RemainingLessons <= 0;
                     const statusCard = document.getElementById("statusCard");
                     
@@ -97,7 +108,16 @@
                         document.getElementById("resStatus").className = "text-sm font-bold text-green-600";
                     }
 
-                    // 渲染出席过的日期
+                    // 🆕 核心：生成专属于学生 ID 的二维码
+                    new QRCode(qrDiv, {
+                        text: String(student.ID),
+                        width: 140,
+                        height: 140,
+                        colorDark : "#5b21b6", // 漂亮的深紫色码
+                        colorLight : "#ffffff"
+                    });
+
+                    // 出席历史日期渲染
                     const datesDiv = document.getElementById("resDates");
                     datesDiv.innerHTML = "";
                     if(student.AttendanceDates) {
@@ -105,12 +125,12 @@
                         datesArray.forEach(date => {
                             if(!date) return;
                             const span = document.createElement("span");
-                            span.className = "bg-blue-100 text-blue-800 text-xs px-2.5 py-1 rounded-full font-medium border border-blue-200";
+                            span.className = "bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded border border-blue-100 font-mono";
                             span.innerText = date;
                             datesDiv.appendChild(span);
                         });
                     } else {
-                        datesDiv.innerHTML = `<span class="text-sm text-gray-400 italic">暂无出席记录</span>`;
+                        datesDiv.innerHTML = `<span class="text-xs text-gray-400 italic">暂无出席记录</span>`;
                     }
 
                     resultArea.classList.remove("hidden");
@@ -118,7 +138,7 @@
                     errorMsg.classList.remove("hidden");
                 }
             } catch (error) {
-                alert("网络请求失败，请稍后再试。");
+                alert("网络请求失败，请稍后重试。");
             }
         }
     </script>
