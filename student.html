@@ -48,15 +48,20 @@
                 <div><span class="text-xs text-slate-400 block">本期得分</span><b id="resCurr" class="text-xl text-indigo-600"></b></div>
             </div>
 
-            <!-- 📅 【华丽回归】出席历史记录看板 -->
+            <!-- 📅【升级：防挤压智能伸缩看板】 -->
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">📅 已出席课堂足迹</span>
-                    <span id="attendanceCount" class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-black">0 次</span>
+                    <div>
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block">📅 已出席课堂足迹</span>
+                        <!-- 默认折叠状态下，这里会温馨提示总次数 -->
+                        <span id="attendanceSummary" class="text-[10px] text-slate-400 block mt-0.5">总计: 0次</span>
+                    </div>
+                    <!-- 控制展开与收起的按钮 -->
+                    <button id="toggleAttendanceBtn" onclick="toggleAttendance()" class="text-[10px] bg-slate-200 text-slate-600 px-2 py-1 rounded-md font-black hover:bg-slate-300 transition-colors">展开全部</button>
                 </div>
-                <!-- 超过一定高度会自动允许滚轮滑动，不挤占屏幕空间 -->
-                <div id="attendanceList" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
-                    <!-- 动态生成日期标签 -->
+                <!-- 日期渲染容器 -->
+                <div id="attendanceList" class="flex flex-wrap gap-1.5 pt-1 max-h-28 overflow-y-auto pr-1">
+                    <!-- 动态渲染 -->
                 </div>
             </div>
 
@@ -86,6 +91,10 @@
         // 🔴 务必换成你重新部署后的 /exec 网址
         const API_URL = "https://script.google.com/macros/s/AKfycbybJTdVnyxWiyoKn41-qW4nGLAhfEJCaHqKkNXBJSE7Q9NmKKL_pI8tEmr44-nz5OKz/exec"; 
         let currentStudentRow = null;
+        
+        // 用于管理出勤折叠状态的全局变量
+        let globalAttendanceDates = [];
+        let isAttendanceExpanded = false;
 
         async function query() {
             const phone = document.getElementById("phone").value.trim();
@@ -104,26 +113,17 @@
                     document.getElementById("resLast").innerText = (s.LastScore || 0) + "分";
                     document.getElementById("resCurr").innerText = (s.CurrentScore || 0) + "分";
                     
-                    // 🌟【新加回：出席日期动态排版渲染】
-                    const attList = document.getElementById("attendanceList");
-                    const attCount = document.getElementById("attendanceCount");
-                    attList.innerHTML = "";
-                    
+                    // 解析并清洗出勤数据
                     const datesStr = s.AttendanceDates ? String(s.AttendanceDates).trim() : "";
                     if (datesStr) {
-                        // 以逗号切开，清洗空格，过滤掉空数据
-                        const datesArray = datesStr.split(",").map(d => d.trim()).filter(d => d);
-                        attCount.innerText = datesArray.length + " 次";
-                        datesArray.forEach(date => {
-                            attList.innerHTML += `
-                                <span class="text-[11px] bg-indigo-50 text-indigo-600 font-mono px-2 py-0.5 rounded-md border border-indigo-100 font-medium">
-                                    ${date}
-                                </span>`;
-                        });
+                        globalAttendanceDates = datesStr.split(",").map(d => d.trim()).filter(d => d);
                     } else {
-                        attCount.innerText = "0 次";
-                        attList.innerHTML = `<span class="text-xs text-slate-400 italic">暂无上课打卡记录</span>`;
+                        globalAttendanceDates = [];
                     }
+                    
+                    // 每次新查询，默认保持“折叠收起”状态，绝不挤压页面
+                    isAttendanceExpanded = false; 
+                    renderAttendanceUI();
 
                     renderCoupons(s);
 
@@ -163,6 +163,50 @@
                     document.getElementById("resArea").classList.remove("hidden");
                 } else { alert("查无此人，请确保手机号输入无误。"); }
             } catch (e) { alert("网络异常，请刷新重试"); }
+        }
+
+        // 🔥【新增的核心渲染函数】：专门负责出勤记录的伸缩剪裁
+        function renderAttendanceUI() {
+            const listContainer = document.getElementById("attendanceList");
+            const summaryText = document.getElementById("attendanceSummary");
+            const toggleBtn = document.getElementById("toggleAttendanceBtn");
+            
+            listContainer.innerHTML = "";
+            
+            if (globalAttendanceDates.length === 0) {
+                summaryText.innerText = "总计: 0次";
+                toggleBtn.classList.add("hidden");
+                listContainer.innerHTML = `<span class="text-xs text-slate-400 italic">暂无上课打卡记录</span>`;
+                return;
+            }
+            
+            toggleBtn.classList.remove("hidden");
+            summaryText.innerText = `总计: ${globalAttendanceDates.length}次`;
+            
+            if (isAttendanceExpanded) {
+                // 1. 展开状态：全部渲染出来，按钮变成收起
+                toggleBtn.innerText = "收起历史 ⬆️";
+                globalAttendanceDates.forEach(date => {
+                    listContainer.innerHTML += `
+                        <span class="text-[11px] bg-indigo-50 text-indigo-600 font-mono px-2 py-0.5 rounded-md border border-indigo-100 font-medium">
+                            ${date}
+                        </span>`;
+                });
+            } else {
+                // 2. 折叠状态（默认）：只裁剪并渲染最后一条（即最新一次打卡记录）
+                toggleBtn.innerText = `展开全部 (${globalAttendanceDates.length}次) ⬇️`;
+                const lastDate = globalAttendanceDates[globalAttendanceDates.length - 1];
+                listContainer.innerHTML = `
+                    <span class="text-[11px] bg-emerald-50 text-emerald-700 font-mono px-2 py-0.5 rounded-md border border-emerald-100 font-bold flex items-center gap-1">
+                        📍 最新打卡: ${lastDate}
+                    </span>`;
+            }
+        }
+
+        // 按钮点击触发伸缩
+        function toggleAttendance() {
+            isAttendanceExpanded = !isAttendanceExpanded;
+            renderAttendanceUI();
         }
 
         function renderCoupons(s) {
