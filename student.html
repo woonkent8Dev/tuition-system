@@ -21,13 +21,16 @@
 
         <div id="resArea" class="hidden border-t pt-4 space-y-4">
             
+            <!-- 二维码打卡区 -->
             <div class="text-center">
                 <div id="qrcode" class="p-2 bg-white rounded-xl shadow-md mx-auto w-fit border border-slate-100"></div>
                 <p class="text-[10px] text-indigo-600 mt-1 font-bold animate-pulse">📷 老师用任意相机扫描上方QR码即可一秒签到</p>
             </div>
 
+            <!-- 危急红色警告横幅区 -->
             <div id="debtAlert" class="hidden"></div>
             
+            <!-- 基础资料卡 -->
             <div id="infoCard" class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg transition-all duration-300">
                 <div>
                     <span class="text-xs text-slate-400 block font-medium">STUDENT NAME</span>
@@ -39,16 +42,31 @@
                 </div>
             </div>
 
+            <!-- 分数看板 -->
             <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 text-center divide-x">
                 <div><span class="text-xs text-slate-400 block">上期考核</span><b id="resLast" class="text-base text-slate-700"></b></div>
                 <div><span class="text-xs text-slate-400 block">本期得分</span><b id="resCurr" class="text-xl text-indigo-600"></b></div>
             </div>
 
+            <!-- 📅 【华丽回归】出席历史记录看板 -->
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">📅 已出席课堂足迹</span>
+                    <span id="attendanceCount" class="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-black">0 次</span>
+                </div>
+                <!-- 超过一定高度会自动允许滚轮滑动，不挤占屏幕空间 -->
+                <div id="attendanceList" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto pr-1">
+                    <!-- 动态生成日期标签 -->
+                </div>
+            </div>
+
+            <!-- 礼券架 -->
             <div id="couponSection" class="space-y-3">
                 <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">🎁 我的专属荣誉礼券架</h3>
                 <div id="couponShelf" class="space-y-2"></div>
             </div>
 
+            <!-- 付款模块 -->
             <button onclick="togglePay()" class="w-full bg-slate-200 text-slate-700 text-xs py-2 rounded-xl font-bold transition hover:bg-slate-300">💳 展开学费付款码</button>
             <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-amber-200">
                 <div class="bg-white p-2 rounded-lg text-center shadow-sm">
@@ -86,9 +104,30 @@
                     document.getElementById("resLast").innerText = (s.LastScore || 0) + "分";
                     document.getElementById("resCurr").innerText = (s.CurrentScore || 0) + "分";
                     
+                    // 🌟【新加回：出席日期动态排版渲染】
+                    const attList = document.getElementById("attendanceList");
+                    const attCount = document.getElementById("attendanceCount");
+                    attList.innerHTML = "";
+                    
+                    const datesStr = s.AttendanceDates ? String(s.AttendanceDates).trim() : "";
+                    if (datesStr) {
+                        // 以逗号切开，清洗空格，过滤掉空数据
+                        const datesArray = datesStr.split(",").map(d => d.trim()).filter(d => d);
+                        attCount.innerText = datesArray.length + " 次";
+                        datesArray.forEach(date => {
+                            attList.innerHTML += `
+                                <span class="text-[11px] bg-indigo-50 text-indigo-600 font-mono px-2 py-0.5 rounded-md border border-indigo-100 font-medium">
+                                    ${date}
+                                </span>`;
+                        });
+                    } else {
+                        attCount.innerText = "0 次";
+                        attList.innerHTML = `<span class="text-xs text-slate-400 italic">暂无上课打卡记录</span>`;
+                    }
+
                     renderCoupons(s);
 
-                    // 🔥【危机感调整核心】：判断是否欠费或归零
+                    // 危机感控制逻辑
                     const isDebt = parseFloat(s.RemainingLessons) <= 0;
                     const infoCard = document.getElementById("infoCard");
                     const resL = document.getElementById("resL");
@@ -97,12 +136,10 @@
                     const lessonLabel = document.getElementById("lessonLabel");
 
                     if (isDebt) {
-                        // 1. 卡片瞬间变成血红+呼吸灯闪烁，制造危机感
                         infoCard.className = "bg-gradient-to-br from-red-600 to-rose-700 p-4 rounded-xl text-white flex justify-between items-center shadow-xl shadow-red-100 animate-pulse transition-all";
                         resL.className = "text-2xl font-black text-white bg-red-900/50 px-2 py-0.5 rounded-lg";
                         lessonLabel.className = "text-xs text-red-200 block font-bold animate-bounce";
                         
-                        // 2. 强行塞入一条无法忽视的警告横幅
                         debtAlert.innerHTML = `
                             <div class="bg-red-50 border-2 border-red-200 text-red-700 p-3 rounded-xl text-xs space-y-1">
                                 <b class="text-sm text-red-600 flex items-center gap-1 font-black">⚠️ 续费紧急提示 / RENEW NOTICE</b>
@@ -110,11 +147,8 @@
                             </div>
                         `;
                         debtAlert.classList.remove("hidden");
-                        
-                        // 3. 心理学大招：强行展开底部的付款码，让家长没有任何“找不到付款码”的借口！
                         payBox.classList.remove("hidden");
                     } else {
-                        // 正常有课时状态：维持原本低调高级的 Slate 色，付款码默认收起
                         infoCard.className = "bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg transition-all";
                         resL.className = "text-2xl font-black text-emerald-400";
                         lessonLabel.className = "text-xs text-slate-400 block font-medium";
