@@ -6,7 +6,230 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
+<body class="bg-slate-50 p-4 font-sans text-xs m<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课室管理后台（智能提醒加强版）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
 <body class="bg-slate-50 p-4 font-sans text-xs md:text-sm">
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-xl shadow-md space-y-6">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">🎒 课室核心看板 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-normal">v3.3 动态学费版</span></h1>
+                <p class="text-xs text-slate-400 mt-1">系统会自动监控欠费学员。支持根据单堂学费自动计算一期（4堂）总额并一键催缴。</p>
+            </div>
+            <button onclick="toggleScanner()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all self-stretch md:self-auto text-center">📷 开启摄像头扫码打卡</button>
+        </div>
+
+        <div id="scannerContainer" class="hidden bg-gray-50 p-4 rounded border-2 border-dashed border-indigo-300 max-w-sm mx-auto text-center">
+            <div id="reader" class="w-full bg-white rounded overflow-hidden"></div>
+            <button onclick="toggleScanner()" class="mt-2 text-xs text-gray-400 hover:underline">关闭扫描</button>
+        </div>
+
+        <form id="addStudentForm" onsubmit="addStudent(event)" class="bg-slate-50 p-3 rounded-lg flex flex-wrap gap-2 items-center border">
+            <input type="text" id="newName" placeholder="学生姓名" required class="px-3 py-1.5 border rounded text-xs w-28">
+            <input type="text" id="newPhone" placeholder="手机号(如 0123456789)" required class="px-3 py-1.5 border rounded text-xs w-40">
+            <input type="number" id="newPrice" value="37.5" step="0.1" placeholder="单堂学费" required class="px-3 py-1.5 border rounded text-xs w-24">
+            <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-4 py-1.5 rounded font-bold text-xs transition">＋ 快速录入学员</button>
+        </form>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-100 text-slate-600 text-xs uppercase font-bold border-b">
+                        <th class="p-3">学生基本资料</th>
+                        <th class="p-3">学费课堂情况</th>
+                        <th class="p-3">🚨 智能提醒中心</th>
+                        <th class="p-3">学术与饮料约定 (点击可更新)</th>
+                        <th class="p-3 text-center">🎁 实时核销大厅</th>
+                        <th class="p-3 text-right">人工操作</th>
+                    </tr>
+                </thead>
+                <tbody id="studentTable" class="divide-y divide-slate-100">
+                    <tr><td colspan="6" class="p-4 text-center text-slate-400">正在同步云端表格...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 🔴 别忘了替换你的正式谷歌 URL (/exec 结尾)
+        const API_URL = "https://script.google.com/macros/s/AKfycbybJTdVnyxWiyoKn41-qW4nGLAhfEJCaHqKkNXBJSE7Q9NmKKL_pI8tEmr44-nz5OKz/exec"; 
+        let studentsData = [];
+        let html5QrcodeScanner = null;
+
+        async function loadStudents() {
+            try {
+                const res = await fetch(API_URL);
+                studentsData = await res.json();
+                renderTable();
+            } catch (e) { alert("同步失败，请检查网络或谷歌脚本URL"); }
+        }
+
+        // 格式化手机号，确保符合 WhatsApp 国际直达格式 (马来西亚等：去除0，补上60)
+        function formatWhatsAppPhone(phoneStr) {
+            let p = String(phoneStr).replace(/[^0-9]/g, '');
+            if (p.startsWith('0')) { p = '6' + p; }
+            if (!p.startsWith('60') && p.startsWith('1')) { p = '60' + p; }
+            return p;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("studentTable");
+            tbody.innerHTML = "";
+            
+            studentsData.forEach(s => {
+                const isDebt = parseFloat(s.RemainingLessons) <= 0;
+                const tr = document.createElement("tr");
+                tr.className = isDebt ? "bg-red-50/60 hover:bg-red-100/60 transition-colors" : "hover:bg-slate-50/80 transition-colors";
+                
+                // --- 1. 学术逻辑渲染 ---
+                let academicHtml = `<div class="font-medium text-slate-700">上期: ${s.LastScore||0}分 | 本期: <b class="text-indigo-600 text-base">${s.CurrentScore||0}分</b></div>`;
+                if(s.CustomTargetScore > 0) {
+                    academicHtml += `<div class="text-xs text-amber-600 mt-0.5">🥤 饮料目标分: <b>${s.CustomTargetScore}分</b> (${s.CustomRewardStatus})</div>`;
+                }
+
+                // --- 2. 实时核销大厅渲染 ---
+                let redeemCenterHtml = `<div class="flex flex-col gap-1 items-center justify-center">`;
+                if(String(s.RewardStatus).includes("申请中")) {
+                    const bonus = s.RewardStatus.replace("申请中","");
+                    redeemCenterHtml += `<button onclick="claimReward(${s.rowNumber}, 'Reward')" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs px-3 py-1 rounded-full shadow-md animate-bounce">🔥 准许扣减 ${bonus}</button>`;
+                } else if(String(s.RewardStatus).includes("未兑换")) {
+                    redeemCenterHtml += `<span class="text-xs text-slate-400">🏅 ${s.RewardStatus.replace("未兑换","")}券 (等学生点击)</span>`;
+                } else if(s.RewardStatus === "已兑换") {
+                    redeemCenterHtml += `<span class="text-xs text-emerald-600 font-bold">✅ 学费扣减已抵消</span>`;
+                }
+
+                if(s.CustomRewardStatus === "饮料申请中") {
+                    redeemCenterHtml += `<button onclick="claimReward(${s.rowNumber}, 'Drink')" class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-md animate-pulse">🍹 现场发放特调饮料</button>`;
+                } else if(s.CustomRewardStatus === "饮料未兑换") {
+                    redeemCenterHtml += `<span class="text-xs text-slate-400">🥤 饮料已解锁 (等学生点击)</span>`;
+                } else if(s.CustomRewardStatus === "饮料已兑换") {
+                    redeemCenterHtml += `<span class="text-xs text-blue-500 font-bold">✅ 饮料已喝到 🍹</span>`;
+                }
+
+                if(redeemCenterHtml === `<div class="flex flex-col gap-1 items-center justify-center">`) {
+                    redeemCenterHtml += `<span class="text-xs text-slate-300 italic">🎯 暂无奖项</span>`;
+                }
+                redeemCenterHtml += `</div>`;
+
+                // --- 3. 🔥【核心修正】：动态计算一期学费并清理乱码编码 ---
+                const waPhone = formatWhatsAppPhone(s.Phone);
+                
+                // 自动提取每名学生的“单堂学费”并乘以 4，计算出一期（4堂）的总金额
+                const singleLessonPrice = parseFloat(s.Price) || 0;
+                const fullTermPrice = (singleLessonPrice * 4).toFixed(2).replace(/\.00$/, ''); // 自动去掉无用的 .00 尾数，让150.00变成150
+                
+                // 精美的自动化文案（清除可能有兼容问题的乱码符号）
+                const feeText = encodeURIComponent(`[学费续费提醒]\n\n您好！这里是教育课室中心。温馨提醒您，*${s.Name}* 同学的课时目前已用完或处于欠费状态（当前剩余：*${s.RemainingLessons}* 堂）。\n\n为了不影响孩子接下来的上课进度，麻烦家长抽空续费。一期（4堂）学费为 RM ${fullTermPrice}，感谢您的配合与支持！🌟`);
+                const absentText = encodeURIComponent(`[课堂缺席关心]\n\n您好！今天的课室点名中没有看到 *${s.Name}* 同学。请问孩子今天是有什么事情耽搁了，还是身体不舒服需要请假呢？\n\n如果有需要安排补课或有任何进度问题，随时让老师知道哦，祝您顺心！❤️`);
+                
+                const waFeeUrl = `https://wa.me/${waPhone}?text=${feeText}`;
+                const waAbsentUrl = `https://wa.me/${waPhone}?text=${absentText}`;
+
+                let reminderHtml = `<div class="space-y-1.5 min-w-[130px]">`;
+                if (isDebt) {
+                    reminderHtml += `
+                        <div class="flex items-center gap-1 text-red-600 font-black animate-pulse bg-red-100 px-2 py-0.5 rounded text-[11px] w-fit">
+                            <span>⚠️ 严重缺缴费!</span>
+                        </div>
+                        <a href="${waFeeUrl}" target="_blank" class="block text-center bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold py-1 px-2 rounded shadow-sm transition">💬 一键催缴费</a>
+                    `;
+                } else {
+                    reminderHtml += `<span class="text-emerald-600 text-xs font-medium block">🟢 账目正常</span>`;
+                }
+                reminderHtml += `<a href="${waAbsentUrl}" target="_blank" class="block text-center bg-slate-700 hover:bg-slate-800 text-white text-[10px] py-0.5 px-2 rounded transition">📱 一键问缺席</a>`;
+                reminderHtml += `</div>`;
+
+
+                // --- 4. 生成整行 HTML ---
+                tr.innerHTML = `
+                    <td class="p-3">
+                        <div class="text-slate-400 font-mono text-xs">ID: #${s.ID}</div>
+                        <b class="text-slate-900 text-base">${s.Name}</b>
+                        <div class="text-slate-500 font-mono text-xs mt-0.5">📞 ${s.Phone}</div>
+                    </td>
+                    <td class="p-3">
+                        <div class="flex items-center gap-2">
+                            <span class="font-black text-base ${isDebt?'text-red-600':'text-emerald-600'}">${s.RemainingLessons} 堂</span>
+                            <div class="flex gap-0.5">
+                                <button onclick="adjust(${s.rowNumber}, 1)" class="bg-slate-200 px-1.5 py-0.5 rounded text-xs font-bold hover:bg-slate-300">+1</button>
+                                <button onclick="adjust(${s.rowNumber}, 4)" class="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs font-bold hover:bg-emerald-700">+4堂</button>
+                                <button onclick="adjust(${s.rowNumber}, -1)" class="bg-slate-200 px-1.5 py-0.5 rounded text-xs font-bold text-red-600 hover:bg-slate-300">-1</button>
+                            </div>
+                        </div>
+                        <div class="text-[11px] text-slate-400 mt-1 max-w-[150px] truncate" title="${s.AttendanceDates||'暂无记录'}">📅 历史: ${s.AttendanceDates || '无记录'}</div>
+                    </td>
+                    <td class="p-3 bg-slate-50/30">${reminderHtml}</td>
+                    <td class="p-3">
+                        ${academicHtml}
+                        <button onclick="editScores(${s.rowNumber},'${s.Name}',${s.LastScore||0},${s.CurrentScore||0},${s.CustomTargetScore||0})" class="text-indigo-600 hover:underline text-xs font-bold mt-1 block">✏️ 设定目标与分数</button>
+                    </td>
+                    <td class="p-3 text-center bg-slate-50/50">${redeemCenterHtml}</td>
+                    <td class="p-3 text-right">
+                        <button onclick="manualIn(${s.rowNumber}, '${s.Name}')" class="text-slate-500 hover:underline mr-2 text-xs">📅 人工补签</button>
+                        <button onclick="deleteS(${s.rowNumber}, '${s.Name}')" class="text-red-400 hover:text-red-600 text-xs">❌</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function editScores(row, name, last, curr, target) {
+            const l = prompt(`【${name}】输入 上期分数:`, last); if(l === null) return;
+            const c = prompt(`【${name}】输入 本期分数:`, curr); if(c === null) return;
+            const t = prompt(`【${name}】输入 饮料目标分 (不设填0):`, target); if(t === null) return;
+            await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "updateScores", rowNumber: row, lastScore: parseInt(l)||0, currentScore: parseInt(c)||0, customTarget: parseInt(t)||0 }) });
+            loadStudents();
+        }
+
+        async function claimReward(row, type) {
+            const act = type === 'Reward' ? 'claimReward' : 'claimDrink';
+            await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: act, rowNumber: row }) });
+            loadStudents();
+        }
+
+        async function adjust(row, amt) { await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "adjustLessons", rowNumber: row, amount: amt }) }); loadStudents(); }
+        
+        async function manualIn(row, name) { 
+            const d = prompt(`为【${name}】进行人工补签打卡。请确认日期:`, new Date().toISOString().split('T')[0]); 
+            if(d) { 
+                const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "updateAttendance", rowNumber: row, date: d.trim() }) }); 
+                const resData = await res.json();
+                if(resData.status === "success") alert(`补签成功！已为 ${name} 扣除一堂课并记录日期。`);
+                loadStudents(); 
+            } 
+        }
+        
+        async function deleteS(row, name) { if(confirm(`确定删除 ${name}?`)) { await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "deleteStudent", rowNumber: row }) }); loadStudents(); } }
+        async function addStudent(e) { e.preventDefault(); await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "addStudent", name: document.getElementById("newName").value, phone: document.getElementById("newPhone").value, price: document.getElementById("newPrice").value }) }); document.getElementById("addStudentForm").reset(); loadStudents(); }
+        
+        function toggleScanner() {
+            const container = document.getElementById("scannerContainer"); container.classList.toggle("hidden");
+            if (!container.classList.contains("hidden")) {
+                html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+                html5QrcodeScanner.render(async (txt) => { 
+                    html5QrcodeScanner.clear(); 
+                    container.classList.add("hidden"); 
+                    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "updateAttendance", studentId: txt, date: new Date().toISOString().split('T')[0] }) }); 
+                    const data = await res.json();
+                    if(data.status === "success") {
+                        alert(`🎉 扫码成功！学员【${data.name}】已自动签到，课时-1`);
+                    } else {
+                        alert(`❌ 打卡失败：${data.message}`);
+                    }
+                    loadStudents();
+                });
+            } else { if(html5QrcodeScanner) html5QrcodeScanner.clear(); }
+        }
+        window.onload = loadStudents;
+    </script>
+</body>
+</html>d:text-sm">
     <div class="max-w-7xl mx-auto bg-white p-6 rounded-xl shadow-md space-y-6">
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
