@@ -11,8 +11,8 @@
         
         <div class="flex flex-col md:flex-row justify-between items-start md:items-center border-b pb-4 gap-4">
             <div>
-                <h1 class="text-xl font-bold text-slate-800">🎒 课室核心看板 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-normal">v3.2 智能催办版</span></h1>
-                <p class="text-xs text-slate-400 mt-1">系统会自动监控欠费学员。支持一键一秒生成 WhatsApp 催缴与缺席通知。</p>
+                <h1 class="text-xl font-bold text-slate-800">🎒 课室核心看板 <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-normal">v3.3 动态学费版</span></h1>
+                <p class="text-xs text-slate-400 mt-1">系统会自动监控欠费学员。支持根据单堂学费自动计算一期（4堂）总额并一键催缴。</p>
             </div>
             <button onclick="toggleScanner()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-bold shadow transition-all self-stretch md:self-auto text-center">📷 开启摄像头扫码打卡</button>
         </div>
@@ -62,7 +62,7 @@
             } catch (e) { alert("同步失败，请检查网络或谷歌脚本URL"); }
         }
 
-        // 格式化手机号，确保符合马来西亚等 WhatsApp 国际直达格式 (去除0，补上60)
+        // 格式化手机号，确保符合 WhatsApp 国际直达格式 (马来西亚等：去除0，补上60)
         function formatWhatsAppPhone(phoneStr) {
             let p = String(phoneStr).replace(/[^0-9]/g, '');
             if (p.startsWith('0')) { p = '6' + p; }
@@ -77,7 +77,6 @@
             studentsData.forEach(s => {
                 const isDebt = parseFloat(s.RemainingLessons) <= 0;
                 const tr = document.createElement("tr");
-                // 如果欠费，整行淡淡变红提示
                 tr.className = isDebt ? "bg-red-50/60 hover:bg-red-100/60 transition-colors" : "hover:bg-slate-50/80 transition-colors";
                 
                 // --- 1. 学术逻辑渲染 ---
@@ -110,12 +109,16 @@
                 }
                 redeemCenterHtml += `</div>`;
 
-                // --- 3. 🔥【核心新增】智能催缴费与缺席提醒逻辑 ---
+                // --- 3. 🔥【核心修正】：动态计算一期学费并清理乱码编码 ---
                 const waPhone = formatWhatsAppPhone(s.Phone);
                 
-                // 精美的自动化文案（支持粗体与Emoji）
-                const feeText = encodeURIComponent(`🚀【学费续费提醒】\n您好！这里是教育课室中心。温馨提醒您，*${s.Name}* 同学的课时目前已用完或处于欠费状态（当前剩余：*${s.RemainingLessons}* 堂）。为了不影响孩子接下来的上课进度，麻烦家长抽空续费。单期学费为 RM${s.Price || 'XX'}，感谢您的配合与支持！✨`);
-                const absentText = encodeURIComponent(`📅【课堂缺席关心】\n您好！今天的课室点名中没有看到 *${s.Name}* 同学。请问孩子今天是有什么事情耽搁了，还是身体不舒服需要请假呢？如果有需要安排补课或有任何进度问题，随时让老师知道哦，祝您顺心！❤️`);
+                // 自动提取每名学生的“单堂学费”并乘以 4，计算出一期（4堂）的总金额
+                const singleLessonPrice = parseFloat(s.Price) || 0;
+                const fullTermPrice = (singleLessonPrice * 4).toFixed(2).replace(/\.00$/, ''); // 自动去掉无用的 .00 尾数，让150.00变成150
+                
+                // 精美的自动化文案（清除可能有兼容问题的乱码符号）
+                const feeText = encodeURIComponent(`[学费续费提醒]\n\n您好！这里是教育课室中心。温馨提醒您，*${s.Name}* 同学的课时目前已用完或处于欠费状态（当前剩余：*${s.RemainingLessons}* 堂）。\n\n为了不影响孩子接下来的上课进度，麻烦家长抽空续费。一期（4堂）学费为 RM ${fullTermPrice}，感谢您的配合与支持！🌟`);
+                const absentText = encodeURIComponent(`[课堂缺席关心]\n\n您好！今天的课室点名中没有看到 *${s.Name}* 同学。请问孩子今天是有什么事情耽搁了，还是身体不舒服需要请假呢？\n\n如果有需要安排补课或有任何进度问题，随时让老师知道哦，祝您顺心！❤️`);
                 
                 const waFeeUrl = `https://wa.me/${waPhone}?text=${feeText}`;
                 const waAbsentUrl = `https://wa.me/${waPhone}?text=${absentText}`;
@@ -131,7 +134,6 @@
                 } else {
                     reminderHtml += `<span class="text-emerald-600 text-xs font-medium block">🟢 账目正常</span>`;
                 }
-                // 任何时候都可以一键问缺席
                 reminderHtml += `<a href="${waAbsentUrl}" target="_blank" class="block text-center bg-slate-700 hover:bg-slate-800 text-white text-[10px] py-0.5 px-2 rounded transition">📱 一键问缺席</a>`;
                 reminderHtml += `</div>`;
 
