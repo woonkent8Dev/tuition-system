@@ -25,15 +25,17 @@
                 <div id="qrcode" class="p-2 bg-white rounded-xl shadow-md mx-auto w-fit border border-slate-100"></div>
                 <p class="text-[10px] text-indigo-600 mt-1 font-bold animate-pulse">📷 老师用任意相机扫描上方QR码即可一秒签到</p>
             </div>
+
+            <div id="debtAlert" class="hidden"></div>
             
-            <div class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg">
+            <div id="infoCard" class="bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg transition-all duration-300">
                 <div>
                     <span class="text-xs text-slate-400 block font-medium">STUDENT NAME</span>
                     <b id="resName" class="text-lg tracking-wide"></b>
                 </div>
                 <div class="text-right">
-                    <span class="text-xs text-slate-400 block font-medium">剩余课堂</span>
-                    <span class="text-2xl font-black text-emerald-400" id="resL"></span>
+                    <span class="text-xs text-slate-400 block font-medium" id="lessonLabel">剩余课堂</span>
+                    <span class="text-2xl font-black" id="resL"></span>
                 </div>
             </div>
 
@@ -47,8 +49,8 @@
                 <div id="couponShelf" class="space-y-2"></div>
             </div>
 
-            <button onclick="togglePay()" class="w-full bg-slate-200 text-slate-700 text-xs py-2 rounded-xl font-bold transition hover:bg-slate-300">💳 展开学费学费付款码</button>
-            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border">
+            <button onclick="togglePay()" class="w-full bg-slate-200 text-slate-700 text-xs py-2 rounded-xl font-bold transition hover:bg-slate-300">💳 展开学费付款码</button>
+            <div id="payBox" class="hidden grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded-xl border border-amber-200">
                 <div class="bg-white p-2 rounded-lg text-center shadow-sm">
                     <span class="font-bold text-blue-600 text-[10px] block mb-1">Touch 'n Go</span>
                     <img src="tngo.JPG" class="w-full h-auto mx-auto border rounded">
@@ -86,7 +88,41 @@
                     
                     renderCoupons(s);
 
-                    // 🔥【核心修正】：不再只生成数字，而是将二维码打包成带有自动化指令的动态 URL！
+                    // 🔥【危机感调整核心】：判断是否欠费或归零
+                    const isDebt = parseFloat(s.RemainingLessons) <= 0;
+                    const infoCard = document.getElementById("infoCard");
+                    const resL = document.getElementById("resL");
+                    const debtAlert = document.getElementById("debtAlert");
+                    const payBox = document.getElementById("payBox");
+                    const lessonLabel = document.getElementById("lessonLabel");
+
+                    if (isDebt) {
+                        // 1. 卡片瞬间变成血红+呼吸灯闪烁，制造危机感
+                        infoCard.className = "bg-gradient-to-br from-red-600 to-rose-700 p-4 rounded-xl text-white flex justify-between items-center shadow-xl shadow-red-100 animate-pulse transition-all";
+                        resL.className = "text-2xl font-black text-white bg-red-900/50 px-2 py-0.5 rounded-lg";
+                        lessonLabel.className = "text-xs text-red-200 block font-bold animate-bounce";
+                        
+                        // 2. 强行塞入一条无法忽视的警告横幅
+                        debtAlert.innerHTML = `
+                            <div class="bg-red-50 border-2 border-red-200 text-red-700 p-3 rounded-xl text-xs space-y-1">
+                                <b class="text-sm text-red-600 flex items-center gap-1 font-black">⚠️ 续费紧急提示 / RENEW NOTICE</b>
+                                <p class="leading-relaxed font-medium text-slate-700">当前孩子课时已耗尽。为了保障接下来课程能顺畅进行而不受系统锁定，请家长尽快完成续费（一期 4 堂计 RM 150）。感谢配合！</p>
+                            </div>
+                        `;
+                        debtAlert.classList.remove("hidden");
+                        
+                        // 3. 心理学大招：强行展开底部的付款码，让家长没有任何“找不到付款码”的借口！
+                        payBox.classList.remove("hidden");
+                    } else {
+                        // 正常有课时状态：维持原本低调高级的 Slate 色，付款码默认收起
+                        infoCard.className = "bg-gradient-to-br from-slate-800 to-slate-900 p-4 rounded-xl text-white flex justify-between items-center shadow-lg transition-all";
+                        resL.className = "text-2xl font-black text-emerald-400";
+                        lessonLabel.className = "text-xs text-slate-400 block font-medium";
+                        debtAlert.classList.add("hidden");
+                        payBox.classList.add("hidden");
+                    }
+
+                    // 生成自动化 QR 链接
                     const magicScanUrl = `${API_URL}?action=scan&studentId=${s.ID}`;
                     new QRCode(document.getElementById("qrcode"), { text: magicScanUrl, width: 130, height: 130 });
                     
